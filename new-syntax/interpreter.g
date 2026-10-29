@@ -7,7 +7,7 @@ statement: "function" IDENTIFIER "(" params ")" block
          | "for" "(" assignment ";" expr ";" assignment ")" statement  
          | "return" [expr] ";"                                         
          | assignment ";"
-         | expr ";"                                                    
+         | expr_nb ";"                                                    
          | block
 
 block:     "{" program "}"
@@ -45,13 +45,50 @@ product: product "*" factor
 factor: "-" factor -> neg
       | atom
 
-atom: "(" expr ")"
-    | NUMBER                       
-    | FLOAT                        
-    | STRING                       
-    | IDENTIFIER                   
-    | IDENTIFIER "(" expr_list ")" -> "call"
+atom: atom_nb
     | set_expr
+
+atom_nb: "(" expr ")"
+       | NUMBER
+       | FLOAT
+       | STRING
+       | IDENTIFIER
+       | IDENTIFIER "(" expr_list ")" -> "call"
+
+// An expression statement must not start with "{", so that a statement starting with "{"
+// is always a block (as in JavaScript).  Otherwise "{}" would be ambiguous: it could be an
+// empty block or the empty set.  The rules ending in "_nb" ("no brace") mirror the rules
+// for expr, ..., factor, but only describe the expressions that don't start with "{".
+expr_nb: disjunction_nb
+
+disjunction_nb: disjunction_nb "||" conjunction
+              | conjunction_nb
+
+conjunction_nb: conjunction_nb "&&" negation
+              | negation_nb
+
+negation_nb: "!" negation
+           | comparison_nb
+
+comparison_nb: sum_nb "==" sum
+             | sum_nb "!=" sum
+             | sum_nb "<=" sum
+             | sum_nb ">=" sum
+             | sum_nb "<"  sum
+             | sum_nb ">"  sum
+             | sum_nb
+
+sum_nb: sum_nb "+" product
+      | sum_nb "-" product
+      | product_nb
+
+product_nb: product_nb "*" factor
+          | product_nb "/" factor
+          | product_nb "%" factor
+          | factor_nb
+
+factor_nb: "-" factor -> neg
+         | atom_nb
 
 expr_list: (expr ("," expr)*) 
 
