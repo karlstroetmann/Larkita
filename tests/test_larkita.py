@@ -189,6 +189,13 @@ class TestClarifications(LarkitaTestCase):
         g = 'expr: expr "+" NUMBER | NUMBER'
         self.assertEqual(self.parse(g, '1 + 2', lexer='basic'), ('+', ('NUMBER', '1'), ('NUMBER', '2')))
 
+    def test_lex(self):
+        g = 'stmt: "if" NUMBER "then" IDENTIFIER'
+        tokens = list(self.make(g).lex('if 1\nthen x'))
+        self.assertEqual([(t.type, t.value) for t in tokens],
+                         [('IF', 'if'), ('NUMBER', '1'), ('THEN', 'then'), ('IDENTIFIER', 'x')])
+        self.assertEqual((tokens[2].line, tokens[2].column), (2, 1))
+
     def test_long_lists(self):
         g = 'a: b ("," b)*\nb: NUMBER'
         tree = self.parse(g, ', '.join(['1'] * 20000))

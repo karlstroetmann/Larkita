@@ -220,6 +220,10 @@ Larkita(grammar, *, start=None, lexer='contextual', import_paths=(),
 if the parser receives a token it cannot accept (at the end of the input, the
 token has the type `$END`).  All exceptions derive from `LarkitaError`.
 
+`parser.lex(text)` runs only the scanner and returns an iterator over the tokens.
+Every token `t` provides `t.type`, `t.value`, `t.line`, and `t.column`; ignored
+tokens are skipped.
+
 After construction, `parser.conflicts`, `parser.rules`, `parser.terminals`,
 `parser.parse_table` and `parser.out_file` describe the generated parser.
 

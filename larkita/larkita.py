@@ -1,13 +1,13 @@
 import os
 import re
 import warnings
-from typing import Any, Callable, IO, List, Optional, Sequence, Union
+from typing import Any, Callable, IO, Iterator, List, Optional, Sequence, Union
 
 from .ast_builder import create_callbacks
 from .common import LexerConf
 from .exceptions import ConflictWarning, GrammarError, assert_config
 from .grammar import Rule
-from .lexer import TerminalDef
+from .lexer import BasicLexer, LexerThread, TerminalDef, Token
 from .load_grammar import load_grammar
 from .lr_analysis import LR1Analyzer, Conflict, ParseTable
 from .parser_frontends import ParsingFrontend
@@ -94,8 +94,9 @@ class Larkita:
             warnings.warn("%d shift/reduce conflict(s) were resolved as shift, see %s" % (len(shift_reduce), out_file),
                           ConflictWarning, stacklevel=2)
 
-        lexer_conf = LexerConf(self.terminals, re_module, self.ignore_tokens, g_regex_flags)
-        self.parser = ParsingFrontend(lexer_conf, self.parse_table, create_callbacks(self.rules), lexer)
+        self.lexer_conf = LexerConf(self.terminals, re_module, self.ignore_tokens, g_regex_flags)
+        self.parser = ParsingFrontend(self.lexer_conf, self.parse_table, create_callbacks(self.rules), lexer)
+        self._basic_lexer: Optional[BasicLexer] = None
 
     @classmethod
     def open(cls, grammar_filename: str, rel_to: Optional[str] = None, **options) -> 'Larkita':
@@ -116,6 +117,17 @@ class Larkita:
 
     def __repr__(self):
         return 'Larkita(open(%r), start=%r)' % (self.source_path or '<string>', self.start)
+
+    def lex(self, text: str) -> Iterator[Token]:
+        """Runs only the scanner and returns an iterator over the tokens of the text.
+
+        As there is no parser state, the tokens are produced by a basic lexer that matches all
+        terminals.  Tokens that are ignored via ``%ignore`` are skipped.  Every token ``t`` provides
+        the attributes ``t.type``, ``t.value``, ``t.line``, and ``t.column``.
+        """
+        if self._basic_lexer is None:
+            self._basic_lexer = BasicLexer(self.lexer_conf)
+        return LexerThread.from_text(self._basic_lexer, text).lex(None)
 
     def parse(self, text: str) -> Any:
         """Parses the text and returns its abstract syntax tree (a nested tuple).
