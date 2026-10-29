@@ -16,12 +16,17 @@ the abstract syntax tree.
 
 ## Installation
 
-Larkita needs Python 3.8 or newer and has no dependencies.  From the root of
-this repository, run
+Larkita needs Python 3.8 or newer and has no dependencies.  The source code is
+on GitHub at <https://github.com/karlstroetmann/Larkita>.  To install it, run
 
+    git clone https://github.com/karlstroetmann/Larkita.git
+    cd Larkita
     pip install .
 
-or simply put the directory `larkita` on your `PYTHONPATH`.
+or simply put the directory `larkita` on your `PYTHONPATH`.  You can also install
+Larkita directly from GitHub:
+
+    pip install git+https://github.com/karlstroetmann/Larkita.git
 
 If the optional package `interegular` is installed, Larkita checks whether the
 regular expressions of different terminals can match the same text.  It reports
