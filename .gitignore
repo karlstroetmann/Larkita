@@ -1,16 +1,11 @@
 *.pyc
 *.pyo
-/.tox
-/lark.egg-info/**
-/lark_parser.egg-info/**
-tags
-.vscode
-.idea
-.ropeproject
-.cache
-.mypy_cache
+__pycache__/
+/larkita.egg-info/
 /dist
 /build
-docs/_build
-docs/examples
-docs/sg_execution_times.rst
+.mypy_cache
+.vscode
+.idea
+# Output files written by Larkita (descriptions of the LR(1) automata)
+*.out
