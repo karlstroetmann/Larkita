@@ -164,6 +164,13 @@ The following points make the rules above precise.
 11. **Start symbol.**  The start symbol is the first rule of the grammar, unless
     another start symbol is given explicitly.
 
+12. **Merging states (optional).**  With `merge_states=True`, states with the same
+    core are merged after the canonical automaton has been built, as long as this
+    introduces no new conflict (also not in the successors) and, with the contextual
+    lexer, does not change how the input is split into tokens.  The parser then
+    accepts the same strings and builds the same trees.  By default, states are not
+    merged, so the output file shows the canonical LR(1) automaton.
+
 ## Scope
 
 * The package is called `larkita`; `Larkita(grammar).parse(text)` returns a tuple.

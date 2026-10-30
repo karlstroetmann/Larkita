@@ -1,0 +1,6 @@
+canonical: 142 states
+    (':=', ('IDENTIFIER', 'else'), ('NUMBER', '2'))
+merged: 81 states
+    (':=', ('IDENTIFIER', 'else'), ('NUMBER', '2'))
+merged, basic lexer: 56 states
+    UnexpectedToken at column 9

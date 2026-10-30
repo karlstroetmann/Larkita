@@ -1,0 +1,15 @@
+States with the same core have been merged, unless this would cause
+a conflict: 14 LR(1) states have been merged into 14 states.
+
+The following states have the same core, but they have been kept
+apart.  Either merging them would cause a conflict, or one of them
+accepts a token that collides with a token of the other one, i.e.
+the scanner could read the same text as either of these tokens.
+
+States 6 and 9
+    on "y":
+        state 6 reduces using rule (5) a → "x"
+        state 9 reduces using rule (6) b → "x"
+    on "z":
+        state 6 reduces using rule (6) b → "x"
+        state 9 reduces using rule (5) a → "x"

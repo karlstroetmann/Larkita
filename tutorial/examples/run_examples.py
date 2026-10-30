@@ -14,7 +14,7 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 OUTPUT = os.path.join(HERE, 'output')
 
 SCRIPTS = ['first', 'lex', 'shapes', 'calc', 'while', 'errors', 'message',
-           'dangling', 'look-ahead', 'priority']
+           'dangling', 'look-ahead', 'priority', 'merge', 'not-lalr']
 
 
 def run(name):
@@ -49,8 +49,16 @@ def conflict_state(text):
 
 def state(text, number):
     """Returns the description of a state of an output file."""
-    match = re.search(r'^State %d\n.*?(?=^State \d+\n|\Z)' % number, text, re.S | re.M)
+    header = r'^State %s(?:   \(merged from [^\n]*\))?\n'
+    match = re.search(header % number + r'.*?(?=' + header % r'\d+' + r'|\Z)', text, re.S | re.M)
     return match.group(0)
+
+
+def first_reason(text):
+    """Returns the beginning of the section "Merged states" up to the first pair of states that
+    have been kept apart, including the reasons for this pair."""
+    blocks = re.split(r'\n\n(?=States \d+ and \d+\n)', section(text, 'Merged states'))
+    return '\n\n'.join(blocks[:2])
 
 
 def main():
@@ -73,6 +81,10 @@ def main():
     look_ahead = read('look-ahead.out')
     write('look-ahead-state', state(look_ahead, conflict_state(look_ahead)))
     write('priority-conflicts', section(read('priority.out'), 'Conflicts'))
+    write('while-merged', first_reason(read('while-merged.out')))
+    write('while-merged-state', state(read('while-merged.out'), 3))
+    write('while-basic', section(read('while-basic.out'), 'Merged states'))
+    write('not-lalr-merged', section(read('not-lalr.out'), 'Merged states'))
 
 
 if __name__ == '__main__':

@@ -247,6 +247,7 @@ They are imported with \verb|%import common.NAME|; with \verb|%import common.NAM
 is renamed.
 
 \subsection{The scanner}
+\label{sec:scanner}
 The scanner splits the input into tokens.  The command \verb|%ignore NAME| tells the scanner to skip the
 tokens of the terminal \texttt{NAME}, e.g.~white space or comments.  The method \texttt{lex} runs only the
 scanner, which is useful when a grammar does not work as expected:
@@ -402,6 +403,7 @@ The program prints the following:
 \resultfile{calc}
 
 \section{A Small Interpreter}
+\label{sec:interpreter}
 Our next example is an interpreter for a small imperative language with assignments, \verb|print|
 statements, \verb|if| statements, \verb|while| loops, and blocks.  Its grammar \texttt{while.g} shows how
 \verb|%ignore:| and aliases keep the abstract syntax tree small.
@@ -548,12 +550,76 @@ The output file lists the conflict together with its resolution:
 Priorities should be used with care:  The rule with the lower priority is never used to reduce in the
 states where the conflict occurs.  Usually, it is better to rewrite the grammar.
 
+\section{Merging States}
+\label{sec:merging}
+Canonical LR(1) automata can have many states.  For example, the parser for the grammar \texttt{while.g} of
+Section \ref{sec:interpreter} has 142 states.  Many of these states have the same \blue{core}, i.e.~they contain the same items
+and only differ in the look-ahead sets of these items.  An LALR(1) parser merges all states with the same core,
+which yields far fewer states, but this can cause reduce/reduce conflicts that the canonical LR(1) parser does
+not have.  With the option \verb|merge_states=True|, \Larkita\ merges states with the same core, as long as
+this is safe:
+\begin{enumerate}
+\item Merging must not cause a new conflict, neither in the merged states nor in their successors.  As two
+      merged states have one successor for every symbol, their successors have to be merged, too.
+\item Merging must not change how the input is split into tokens.  As explained in Section \ref{sec:scanner}, the
+      contextual scanner only tries the terminals that the parser can accept in its current state.  If the
+      look-ahead tokens of one state are added to another state, the scanner might read some text as a
+      different token.
+\end{enumerate}
+The program \texttt{merge.py} generates three parsers for the grammar \texttt{while.g}: a canonical parser, a
+parser with merged states, and a parser with merged states that uses the basic scanner.  It prints the number
+of states of every parser and parses the string \verb|"x := 1; else := 2;"|.
+\pythonfile{merge.py}
+\resultfile{merge}
+Merging reduces the number of states from 142 to 81.  The output file \texttt{while-merged.out} describes
+the merged states.  For example, state 3 has been obtained by merging the LR(1) states 3 and 16.  Its
+look-ahead set is the union of their look-ahead sets:
+\resultfile[\small]{while-merged-state}
+A new section of the output file explains why some states with the same core have been kept apart.  It begins
+as follows:
+\resultfile[\small]{while-merged}
+After the statement \verb|{}|, state 15 expects the next statement, which may start with an identifier, while
+state 65 expects the keyword \verb|else|, because the block is the then-branch of an \verb|if| statement.  In
+state 15, the contextual scanner reads the string \texttt{else} as an identifier, because the keyword
+\verb|"else"| cannot occur here.  If the two states were merged, the scanner would read \texttt{else} as a
+keyword in both contexts.  Hence, these states are kept apart.  The output file lists five more pairs of
+this kind, one for every other kind of statement.  For example, the parser reaches state 27 after an
+assignment like \verb|x := 1;| that is not followed by \verb|else|.  Therefore, both the canonical parser
+and the parser with merged states read the string \texttt{else} in \verb|x := 1; else := 2;| as an
+identifier.  All other states that have been kept apart only differ in their successors.
+
+The basic scanner always tries all terminals, so merging cannot change the tokens.  Therefore, with the basic
+scanner all states with the same core of the grammar \texttt{while.g} are merged and the result is the
+LALR(1) automaton with 56 states.  However, the basic scanner always reads \texttt{else} as a keyword, so this
+parser rejects \verb|else := 2;|.  The basic scanner without merging would reject it, too.  The output file
+\texttt{while-basic.out} reports:
+\resultfile[\small]{while-basic}
+The grammar \texttt{not-lalr.g} below is LR(1), but it is not LALR(1).
+\grammarfile{not-lalr.g}
+After reading \verb|"v" "x"| and \verb|"w" "x"|, the parser reaches two states with the same core.  In the first
+state, \verb|"x"| has to be reduced to \texttt{a} if the next token is \verb|"y"|, and to \texttt{b} if it is
+\verb|"z"|.  In the second state, it is the other way round.  Merging these states would therefore cause two
+reduce/reduce conflicts, so they are kept apart:
+\pythonfile{not-lalr.py}
+\resultfile{not-lalr}
+\resultfile[\small]{not-lalr-merged}
+As these are the only states with the same core, merging does not reduce the number of states for this
+grammar.
+
+A parser with merged states accepts the same strings and returns the same abstract syntax trees as the
+canonical parser, and it detects syntax errors at the same tokens.  However, a merged state may reduce on a
+look-ahead token that is an error in some of the states it has been merged from.  Then the parser performs
+some reductions before it detects the error, and the list of expected tokens in the error message may
+differ.  As the output file of the canonical parser is easier to understand, states are only merged if this
+is requested.
+
 \section{Reference}
 \subsection{The class \texttt{Larkita}}
 \begin{unbreakable}
 \begin{minted}{python3}
 Larkita(grammar, *, start=None, lexer='contextual', import_paths=(),
-        source_path=None, out_file=None, regex=False, g_regex_flags=0)
+        source_path=None, out_file=None, regex=False, g_regex_flags=0,
+        merge_states=False)
 \end{minted}
 \end{unbreakable}
 \begin{itemize}
@@ -566,6 +632,8 @@ Larkita(grammar, *, start=None, lexer='contextual', import_paths=(),
 \item \texttt{out\_file}: the path of the output file.
 \item \texttt{regex}: if \texttt{True}, the module \texttt{regex} is used instead of the module \texttt{re}.
 \item \verb|g_regex_flags|: flags that are applied to all regular expressions, e.g.~\verb|re.IGNORECASE|.
+\item \verb|merge_states|: if \texttt{True}, states with the same core are merged, as long as this is safe
+      (see Section \ref{sec:merging}).
 \end{itemize}
 \verb|Larkita.open(filename, rel_to=None, **options)| reads the grammar from a file.  If \verb|rel_to| is
 given, the file name is interpreted relative to the directory of the file \verb|rel_to|, so
@@ -622,6 +690,8 @@ Readers who know \Lark\ should note the following differences:
       and caching are not supported.
 \item Shift/reduce conflicts are resolved as shift with a warning, and every parser comes with an output file
       that describes the LR(1) automaton.
+\item By default, the states of the canonical LR(1) automaton are not merged.  If the option
+      \verb|merge_states=True| is given, states with the same core are merged as far as this is safe.
 \end{itemize}
 
 \end{document}

@@ -5,6 +5,7 @@ import unittest
 import warnings
 
 from larkita import (Larkita, GrammarError, ConflictWarning, UnexpectedToken, UnexpectedCharacters)
+from larkita.lr_analysis import LR1Analyzer
 
 EXAMPLES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'new-syntax')
 
@@ -249,6 +250,105 @@ class TestLR1(LarkitaTestCase):
         parser = self.make(g)
         self.assertEqual(parser.parse('1'), ('NUMBER', '1'))
         self.assertTrue(all(c.resolved for c in parser.conflicts))
+
+
+class TestMergeStates(LarkitaTestCase):
+    "The option merge_states=True merges states with the same core, as long as this is safe"
+
+    STATEMENTS = '''
+    program: stmt*
+    stmt: IDENTIFIER ":=" expr ";"
+        | "if" "(" expr ")" stmt "else" stmt    -> "if"
+        | "{" stmt* "}"                          -> block
+    expr: expr "+" atom
+        | atom
+    atom: "(" expr ")"
+        | NUMBER
+        | IDENTIFIER
+    %ignore: "(", ")", "{", "}", ";"
+    '''
+
+    def cores(self, parser):
+        "The number of states of the LALR(1) automaton"
+        states = LR1Analyzer(parser.rules, parser.start).states
+        return len({frozenset(state.kernel) for state in states})
+
+    def test_lalr_grammar_with_basic_lexer_yields_lalr_automaton(self):
+        canonical = self.make(self.STATEMENTS, lexer='basic')
+        merged = self.make(self.STATEMENTS, lexer='basic', merge_states=True)
+        self.assertLess(len(merged.parse_table.states), len(canonical.parse_table.states))
+        self.assertEqual(len(merged.parse_table.states), self.cores(canonical))
+        text = 'x := 1; if (x) { y := (x + 2) + 3; } else z := y;'
+        self.assertEqual(merged.parse(text), canonical.parse(text))
+
+    def test_syntax_errors_are_found_at_the_same_token(self):
+        canonical = self.make(self.STATEMENTS)
+        merged = self.make(self.STATEMENTS, merge_states=True)
+        for text in ['x := (1 + ;', 'if (x) y := 1; z := 2;', 'x := 1; }', 'x := 1 +']:
+            errors = []
+            for parser in canonical, merged:
+                with self.assertRaises(UnexpectedToken) as cm:
+                    parser.parse(text)
+                errors.append((cm.exception.line, cm.exception.column))
+            self.assertEqual(errors[0], errors[1], text)
+
+    def test_contextual_lexer_is_respected(self):
+        # After a statement, the contextual lexer of the canonical parser reads "else" as an
+        # identifier.  Merging the state that follows the statement in the then-branch of an "if"
+        # (which accepts "else") with the other states would make the lexer read a keyword.
+        text = 'x := 1; else := 2;'
+        expected = ('program', (':=', ('IDENTIFIER', 'x'), ('NUMBER', '1')),
+                               (':=', ('IDENTIFIER', 'else'), ('NUMBER', '2')))
+        self.assertEqual(self.parse(self.STATEMENTS, text), expected)
+        merged = self.make(self.STATEMENTS, merge_states=True)
+        self.assertEqual(merged.parse(text), expected)
+        self.assertGreater(len(merged.parse_table.states), self.cores(merged))
+        with open(merged.out_file, encoding='utf8') as f:
+            self.assertIn('(collides with IDENTIFIER)', f.read())
+
+    def test_lr1_but_not_lalr1(self):
+        g = '''
+        s: "a" e "c" | "a" f "d" | "b" f "c" | "b" e "d"
+        e: "x" -> e
+        f: "x" -> f
+        '''
+        parser = self.make(g, merge_states=True, lexer='basic')
+        self.assertEqual(parser.conflicts, [])
+        self.assertEqual(len(parser.parse_table.states), self.cores(parser) + 1)
+        self.assertEqual(parser.parse('axc'), (('a', 'c'), ('e',)))
+        self.assertEqual(parser.parse('axd'), (('a', 'd'), ('f',)))
+        self.assertEqual(parser.parse('bxc'), (('b', 'c'), ('f',)))
+        self.assertEqual(parser.parse('bxd'), (('b', 'd'), ('e',)))
+        with open(parser.out_file, encoding='utf8') as f:
+            report = f.read()
+        self.assertIn('merging them would cause a conflict', report)
+        self.assertIn('reduces using rule (5) e → "x"', report)
+
+    def test_shift_reduce_conflicts_are_merged(self):
+        g = '''
+        stmt: "if" expr "then" stmt
+            | "if" expr "then" stmt "else" stmt
+            | expr
+        expr: NUMBER
+        '''
+        with self.assertWarns(ConflictWarning):
+            parser = self.make(g, merge_states=True)
+        self.assertEqual([c.kind for c in parser.conflicts], ['shift/reduce'])
+        self.assertEqual(parser.parse('if 1 then if 2 then 3 else 4'),
+                         (('if', 'then'), ('NUMBER', '1'),
+                          (('if', 'then', 'else'), ('NUMBER', '2'), ('NUMBER', '3'), ('NUMBER', '4'))))
+
+    def test_reduce_reduce_conflict_is_still_an_error(self):
+        with self.assertRaises(GrammarError):
+            self.make('a: b | c\nb: NUMBER\nc: NUMBER', merge_states=True)
+
+    def test_output_file(self):
+        parser = self.make(self.STATEMENTS, lexer='basic', merge_states=True)
+        with open(parser.out_file, encoding='utf8') as f:
+            report = f.read()
+        self.assertIn('LR(1) automaton with merged states', report)
+        self.assertIn('merged from the LR(1) states', report)
+        self.assertIn('so this is the\nLALR(1) automaton', report)
 
 
 class TestOutputFile(LarkitaTestCase):

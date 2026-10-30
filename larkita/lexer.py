@@ -7,7 +7,7 @@ from contextlib import suppress
 from copy import copy
 from typing import (
     TypeVar, Type, Dict, Iterator, Collection, Callable, Optional, FrozenSet, Any,
-    AnyStr, ClassVar, TYPE_CHECKING
+    AnyStr, ClassVar, Set, Tuple, TYPE_CHECKING
 )
 from types import ModuleType
 try:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from .common import LexerConf
     from .lr_parser import ParserState
 
-from .utils import classify, get_regexp_width, logger, TextSlice, TextOrSlice
+from .utils import classify, get_regexp_width, logger, TextSlice, TextOrSlice, sre_parse, sre_constants
 from .exceptions import UnexpectedCharacters, LexError, UnexpectedToken
 from .grammar import TOKEN_DEFAULT_PRIORITY
 
@@ -563,6 +563,118 @@ class BasicLexer(AbstractBasicLexer):
 
         # EOF
         raise EOFError(self)
+
+def _first_chars(regexp: str) -> Optional[FrozenSet[str]]:
+    """Returns the characters that a match of the regular expression can start with.
+
+    Upper and lower case are not distinguished.  The result is None if the set is unknown, very
+    large, or if the regular expression matches the empty string.
+    """
+    c = sre_constants
+    repeats = {c.MAX_REPEAT, c.MIN_REPEAT, getattr(c, 'POSSESSIVE_REPEAT', c.MAX_REPEAT)}
+
+    def first(sequence) -> Tuple[Optional[Set[str]], bool]:
+        "The first characters of the sequence, and whether it can match the empty string"
+        result: Set[str] = set()
+        for op, arg in sequence:
+            if op == c.AT:              # an anchor matches the empty string
+                continue
+            if op == c.LITERAL:
+                chars, nullable = {chr(arg)}, False
+            elif op == c.IN:
+                chars, nullable = set(), False
+                for op2, arg2 in arg:
+                    if op2 == c.LITERAL:
+                        chars.add(chr(arg2))
+                    elif op2 == c.RANGE and arg2[1] - arg2[0] < 1000:
+                        chars.update(map(chr, range(arg2[0], arg2[1] + 1)))
+                    else:
+                        return None, False
+            elif op == c.BRANCH:
+                chars, nullable = set(), False
+                for alternative in arg[1]:
+                    sub, sub_nullable = first(alternative)
+                    if sub is None:
+                        return None, False
+                    chars |= sub
+                    nullable = nullable or sub_nullable
+            elif op == c.SUBPATTERN:
+                sub, nullable = first(arg[-1])
+                if sub is None:
+                    return None, False
+                chars = sub
+            elif op in repeats:
+                sub, nullable = first(arg[2])
+                if sub is None:
+                    return None, False
+                chars, nullable = sub, nullable or arg[0] == 0
+            else:
+                return None, False
+            result |= chars
+            if not nullable:
+                return result, False
+        return result, True
+
+    try:
+        chars, nullable = first(sre_parse.parse(regexp))
+    except sre_constants.error:
+        return None
+    if chars is None or nullable:
+        return None
+    return frozenset(chars | {ch.lower() for ch in chars} | {ch.upper() for ch in chars})
+
+
+def token_collisions(conf: 'LexerConf') -> Callable[[str, Collection[str]], Optional[str]]:
+    """Returns a function ``collision(new, accepted)`` that tells whether the contextual lexer might
+    split some input differently if the terminal ``new`` is added to the terminals ``accepted`` of a
+    parser state.  It returns the accepted or ignored terminal that collides with ``new``, or None.
+    Names that are not terminals of the lexer, like ``$END``, are ignored.
+
+    This happens if ``new`` and an accepted (or ignored) terminal can match text at the same
+    position and either ``new`` is tried first, or one of them is a string that the other one, a
+    regular expression, turns into a keyword (see ``_create_unless``).  The test is conservative:
+    it may report a collision that cannot happen, but it never misses one.
+    """
+    terminals = conf.terminals_by_name
+    first_chars: Dict[str, Optional[FrozenSet[str]]] = {}
+    collides: Dict[Tuple[str, str], bool] = {}
+
+    def order(t: TerminalDef):
+        "The order in which BasicLexer tries the terminals"
+        return (-t.priority, -t.pattern.max_width, -len(t.pattern.value), t.name)
+
+    def first(t: TerminalDef) -> Optional[FrozenSet[str]]:
+        if t.name not in first_chars:
+            first_chars[t.name] = _first_chars(t.pattern.to_regexp())
+        return first_chars[t.name]
+
+    def collide(new: TerminalDef, old: TerminalDef) -> bool:
+        a, b = first(new), first(old)
+        if a is not None and b is not None and a.isdisjoint(b):
+            return False
+        if isinstance(new.pattern, PatternRE) and isinstance(old.pattern, PatternStr):
+            return True
+        if isinstance(new.pattern, PatternStr) and isinstance(old.pattern, PatternRE):
+            s = new.pattern.value
+            if new.priority == old.priority and _get_match(conf.re_module, old.pattern.to_regexp(), s,
+                                                           conf.g_regex_flags) == s:
+                return True
+        return order(new) < order(old)
+
+    def collision(new: str, accepted: Collection[str]) -> Optional[str]:
+        if new not in terminals:
+            return None
+        for name in sorted(set(accepted) | set(conf.ignore)):
+            if name in terminals and name != new:
+                key = (new, name)
+                if key not in collides:
+                    collides[key] = collide(terminals[new], terminals[name])
+                if collides[key]:
+                    return name
+        return None
+
+    return collision
+
 
 class ContextualLexer(Lexer):
     lexers: Dict[int, AbstractBasicLexer]

@@ -203,11 +203,33 @@ State 2
   priority.  If no rule has a higher priority than the others, `Larkita` raises a
   `GrammarError`; the output file is written anyway.
 
+## Merging states
+
+Canonical LR(1) automata can be large.  With `merge_states=True`, Larkita merges
+states with the same core (i.e. the same items without lookaheads), as long as
+this is safe:
+
+* Merging must not introduce a new conflict, neither in the merged states nor in
+  their successors.
+* With the contextual lexer, merging must not change how the input is split into
+  tokens.  For example, if a keyword like `"else"` is only acceptable in one of
+  two states, merging them could make the lexer read `else` as a keyword where
+  the other state reads an identifier.
+
+The resulting parser accepts the same strings, builds the same abstract syntax
+trees, and detects syntax errors at the same tokens as the canonical parser,
+although it may perform a few more reductions before it reports an error.  With
+`lexer='basic'`, the lexer does not depend on the state of the parser, so for an
+LALR(1) grammar the result is the LALR(1) automaton.  The output file then
+describes the merged states and explains why the remaining states with the same
+core have been kept apart.
+
 ## API
 
 ```python
 Larkita(grammar, *, start=None, lexer='contextual', import_paths=(),
-        source_path=None, out_file=None, regex=False, g_regex_flags=0)
+        source_path=None, out_file=None, regex=False, g_regex_flags=0,
+        merge_states=False)
 ```
 
 * `grammar`: the grammar as a string or an open file.
@@ -220,6 +242,8 @@ Larkita(grammar, *, start=None, lexer='contextual', import_paths=(),
 * `out_file`: the path of the output file.
 * `regex`: use the `regex` module instead of `re`.
 * `g_regex_flags`: flags applied to all terminals.
+* `merge_states`: merge states with the same core, as long as this is safe
+  (see above).
 
 `Larkita.open(filename, rel_to=None, **options)` reads the grammar from a file.
 

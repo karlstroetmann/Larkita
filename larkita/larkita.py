@@ -7,7 +7,7 @@ from .ast_builder import create_callbacks
 from .common import LexerConf
 from .exceptions import ConflictWarning, GrammarError, assert_config
 from .grammar import Rule
-from .lexer import BasicLexer, LexerThread, TerminalDef, Token
+from .lexer import BasicLexer, LexerThread, TerminalDef, Token, token_collisions
 from .load_grammar import load_grammar
 from .lr_analysis import LR1Analyzer, Conflict, ParseTable
 from .parser_frontends import ParsingFrontend
@@ -30,6 +30,10 @@ class Larkita:
             directory if the grammar is neither read from a file nor given a ``source_path``.
         regex: use the ``regex`` module instead of ``re``.
         g_regex_flags: flags that are applied to all terminals.
+        merge_states: if true, states with the same core are merged, as long as this does not
+            introduce new conflicts.  This makes the parse table smaller; for an LALR(1) grammar
+            the result is the LALR(1) automaton.  The parser accepts the same strings and returns
+            the same abstract syntax trees, but it may detect syntax errors a few reductions later.
 
     The output file is always written, even if the grammar has unresolved conflicts.  In that case
     a GrammarError is raised afterwards.  Shift/reduce conflicts are resolved in favour of shift and
@@ -47,7 +51,8 @@ class Larkita:
 
     def __init__(self, grammar: Union[str, IO[str]], *, start: Optional[str] = None, lexer: str = 'contextual',
                  import_paths: Sequence[Union[str, Callable]] = (), source_path: Optional[str] = None,
-                 out_file: Optional[str] = None, regex: bool = False, g_regex_flags: int = 0) -> None:
+                 out_file: Optional[str] = None, regex: bool = False, g_regex_flags: int = 0,
+                 merge_states: bool = False) -> None:
         if not isinstance(grammar, str):
             if source_path is None:
                 source_path = getattr(grammar, 'name', None)
@@ -77,7 +82,9 @@ class Larkita:
             out_file = os.path.splitext(source_path)[0] + '.out' if source_path else 'grammar.out'
         self.out_file = out_file
 
-        analyzer = LR1Analyzer(self.rules, start)
+        self.lexer_conf = LexerConf(self.terminals, re_module, self.ignore_tokens, g_regex_flags)
+        collision = token_collisions(self.lexer_conf) if lexer == 'contextual' else None
+        analyzer = LR1Analyzer(self.rules, start, merge_states, collision)
         self.parse_table = analyzer.parse_table
         self.conflicts = analyzer.conflicts
         terminal_names = {t.name: t.user_repr() for t in self.terminals}
@@ -94,7 +101,6 @@ class Larkita:
             warnings.warn("%d shift/reduce conflict(s) were resolved as shift, see %s" % (len(shift_reduce), out_file),
                           ConflictWarning, stacklevel=2)
 
-        self.lexer_conf = LexerConf(self.terminals, re_module, self.ignore_tokens, g_regex_flags)
         self.parser = ParsingFrontend(self.lexer_conf, self.parse_table, create_callbacks(self.rules), lexer)
         self._basic_lexer: Optional[BasicLexer] = None
 

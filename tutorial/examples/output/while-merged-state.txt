@@ -1,0 +1,5 @@
+State 3   (merged from the LR(1) states 3, 16)
+
+    (3)  stmnt → IDENTIFIER • ":=" expr ";"  { "if", "print", "while", "{", "}", IDENTIFIER, $END }
+
+    ":="  shift and go to state 10

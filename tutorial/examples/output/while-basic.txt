@@ -1,0 +1,4 @@
+States with the same core have been merged, unless this would cause
+a conflict: 142 LR(1) states have been merged into 56 states.
+All states with the same core have been merged, so this is the
+LALR(1) automaton.

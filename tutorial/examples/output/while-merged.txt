@@ -1,0 +1,15 @@
+States with the same core have been merged, unless this would cause
+a conflict: 142 LR(1) states have been merged into 81 states.
+
+The following states have the same core, but they have been kept
+apart.  Either merging them would cause a conflict, or one of them
+accepts a token that collides with a token of the other one, i.e.
+the scanner could read the same text as either of these tokens.
+
+States 15 and 65
+    on "else":
+        state 15 does not accept "else" (collides with IDENTIFIER)
+        state 65 reduces using rule (8) stmnt → "{" "}"
+    on IDENTIFIER:
+        state 15 reduces using rule (8) stmnt → "{" "}"
+        state 65 does not accept IDENTIFIER (collides with "else")
