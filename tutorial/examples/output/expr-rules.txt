@@ -3,7 +3,7 @@ Every rule is followed by the abstract syntax tree that a reduction produces.
 "text" stands for the text of a named token.
 
   (0)   $root_stmnt → stmnt
-  (1)   stmnt → IDENTIFIER ":=" expr ";"  ⇒ ((":=", ";"), ("IDENTIFIER", text), ast(expr))
+  (1)   stmnt → IDENTIFIER ":=" expr ";"  ⇒ (":=", ("IDENTIFIER", text), ast(expr))
   (2)   stmnt → expr ";"                  ⇒ (";", ast(expr))
   (3)   expr → expr "+" product           ⇒ ("+", ast(expr), ast(product))
   (4)   expr → expr "-" product           ⇒ ("-", ast(expr), ast(product))

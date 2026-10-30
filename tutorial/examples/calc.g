@@ -2,8 +2,8 @@
 
 program: stmnt*
 
-stmnt: IDENTIFIER ":=" expr ";"
-     | "print" expr ";"
+stmnt: IDENTIFIER ":=" expr ";"    %ignore ";"
+     | "print" expr ";"            %ignore ";"
 
 expr: expr "+" product
     | expr "-" product

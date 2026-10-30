@@ -91,12 +91,12 @@
       comes from.  With the option \verb|merge_states=True|, \Larkita\ merges states that only differ in
       their look-ahead tokens, as long as this causes no new conflicts and does not change how the input is
       split into tokens.  If the grammar is LALR(1) and the basic scanner is used, the result is the LALR(1)
-      parser, which has far fewer states (see Section \ref{sec:merging}).
+      parser, which has far fewer states than an LR(1) parser (see Section \ref{sec:merging}).
 \item The parser returns the abstract syntax tree as a \blue{nested tuple}.  For example, with the grammar
       shown in the next section, the string \verb|"x := a + 3;"| is turned into the tuple
       \\[0.2cm]
       \hspace*{0.3cm}
-      \verb|((':=', ';'), ('IDENTIFIER', 'x'),|
+      \verb|(':=', ('IDENTIFIER', 'x'),|
       \\
       \hspace*{0.8cm}
       \verb|('+', ('IDENTIFIER', 'a'), ('NUMBER', '3')))|.
@@ -149,9 +149,11 @@ The file \texttt{expr.g} shown below contains a grammar for assignments and arit
       programming language \texttt{C}.  Similarly, \texttt{NUMBER} matches integers and floating point
       numbers, and \texttt{WS} matches white space.
 \item Line 21 tells the scanner to skip white space.
-\item The annotation \verb|%ignore "(", ")"| in line 14 is specific to \Larkita.  It tells \Larkita\ that
-      the parentheses should not appear in the abstract syntax tree.  We will discuss it in Section
-      \ref{sec:ast}.
+\item The annotations \verb|%ignore ";"| in line 3 and \verb|%ignore "(", ")"| in line 14 are specific to
+      \Larkita.  They tell \Larkita\ that the semicolon of an assignment and the parentheses should not
+      appear in the abstract syntax tree.  The semicolon in line 4 is kept:  It is the only literal of this
+      alternative, and without it the abstract syntax tree of the statement would just be the tree of the
+      expression.  We will discuss \verb|%ignore| in Section \ref{sec:ast}.
 \end{itemize}
 The program \texttt{first.py} generates a parser from this grammar and parses a string:
 \pythonfile{first.py}
@@ -163,7 +165,7 @@ The program \texttt{first.py} generates a parser from this grammar and parses a 
 \end{itemize}
 \resultfile{first}
 Every node of this tree is a tuple.  The first component of a tuple is called its \blue{head}: It contains the
-literals of the rule that has been used.  The remaining components are the \blue{children}.  For example, the
+literals of the rule that has been used, except for the ignored ones.  The remaining components are the \blue{children}.  For example, the
 tuple \verb|('+', ('IDENTIFIER', 'a'), ('NUMBER', '3'))| represents the expression \verb|a + 3|.  Its head is
 the operator \verb|'+'| and its children represent the operands.  A token like \texttt{a} is represented as a
 pair consisting of the name of the terminal and the text that has been read.  Section \ref{sec:ast} explains
@@ -401,8 +403,9 @@ The program \texttt{calc.py} parses a small program, prints its abstract syntax 
       abstract syntax trees of the operands.  The alias \texttt{neg} distinguishes the unary minus from the
       binary minus.
 \item The function \texttt{execute} executes a program.  As the head of the abstract syntax tree of a program
-      is the rule name \texttt{program}, the statements are the components \verb|program[1:]|.  The head of an
-      assignment is the pair \verb|(':=', ';')|, as the alternative contains two literals.
+      is the rule name \texttt{program}, the statements are the components \verb|program[1:]|.  As the
+      semicolons are ignored, the head of an assignment is \verb|':='| and the head of a \verb|print|
+      statement is \verb|'print'|.
 \end{itemize}
 The program prints the following:
 \resultfile{calc}
@@ -413,7 +416,8 @@ Our next example is an interpreter for a small imperative language with assignme
 statements, \verb|if| statements, \verb|while| loops, and blocks.  Its grammar \texttt{while.g} shows how
 \verb|%ignore:| and aliases keep the abstract syntax tree small.
 \grammarfile{while.g}
-Line 29 removes parentheses, braces, and semicolons from all heads.  Hence:
+Instead of ignoring literals in every alternative separately, line 29 removes parentheses, braces, and
+semicolons from all heads.  Hence:
 \begin{itemize}
 \item An assignment \verb|x := e;| is represented as \verb|(':=', ('IDENTIFIER', 'x'), ast(e))|.
 \item A statement \verb|print(e);| is represented as \verb|('print', ast(e))|.

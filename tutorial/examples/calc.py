@@ -26,9 +26,9 @@ def execute(program):
     values = {}
     for stmnt in program[1:]:
         match stmnt:
-            case ((':=', ';'), ('IDENTIFIER', name), expr):
+            case (':=', ('IDENTIFIER', name), expr):
                 values[name] = evaluate(expr, values)
-            case (('print', ';'), expr):
+            case ('print', expr):
                 print(evaluate(expr, values))
 
 

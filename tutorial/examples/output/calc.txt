@@ -1,9 +1,9 @@
 ('program',
- ((':=', ';'),
+ (':=',
   ('IDENTIFIER', 'x'),
   ('*',
    ('NUMBER', '2'),
    ('+', ('NUMBER', '3'), ('NUMBER', '4')))),
- (('print', ';'),
+ ('print',
   ('/', ('IDENTIFIER', 'x'), ('neg', ('NUMBER', '4')))))
 -3.5

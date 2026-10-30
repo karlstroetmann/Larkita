@@ -1,6 +1,6 @@
 // A grammar for assignments and arithmetic expressions.
 
-stmnt: IDENTIFIER ":=" expr ";"
+stmnt: IDENTIFIER ":=" expr ";"    %ignore ";"
      | expr ";"
 
 expr: expr "+" product
