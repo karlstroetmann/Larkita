@@ -188,9 +188,111 @@ The following points make the rules above precise.
 
 * `larkita/larkita.py`: the class `Larkita` (entry point).
 * `larkita/load_grammar.py`: grammar loader; `_make_ast_spec` computes the head of an alternative.
-* `larkita/lr_analysis.py`: canonical LR(1) automaton, parse table, conflict resolution.
+* `larkita/lr_analysis.py`: canonical LR(1) automaton, parse table, conflict resolution, and the
+  optional merging of states (`_merge_states`).
 * `larkita/ast_builder.py`: the reduction callbacks that build the nested tuples.
-* `larkita/report.py`: writes the output file.
+* `larkita/report.py`: writes the output file (including the section "Merged states").
 * `larkita/lr_parser.py`, `larkita/lexer.py`, `larkita/parser_frontends.py`: the runtime.
+  `lexer.token_collisions` decides whether merging states could change the tokens of the
+  contextual lexer.
 * `larkita/tree.py`, `larkita/visitors.py`, `larkita/parse_tree_builder.py`: internal, used to
   parse grammar files only.
+* `tests/test_larkita.py`: the tests (`python3 -m tests`).
+* `tutorial/`: the LaTeX tutorial (see below).
+
+## Handoff: state of the work and how to continue
+
+Last updated on 2026-10-30.  Everything described here is committed and pushed; there are no
+pending tasks.  The memory of earlier Claude Code sessions is only stored on the home computer
+(under the old directory name `simple-lark`), so this section is the reference.
+
+### Repositories
+
+* **Larkita**: this directory (iCloud Drive, `Box/Larkita`),
+  <https://github.com/karlstroetmann/Larkita>, branch `master`.  The directory used to be called
+  `simple-lark`.
+* **Formal-Languages** (the course): iCloud Drive, `Box/Kurse/Formal-Languages`,
+  <https://github.com/karlstroetmann/Formal-Languages>, branch `master`.
+  * `Lecture-Notes/`: the LaTeX lecture notes.  Its own `CLAUDE.md` contains the author's rules.
+  * `Python/Chapter-NN/`: the Jupyter notebooks, numbered like the chapters.
+  * `fl.sh`: creates the conda environment `fl` and installs Larkita from GitHub.
+* In both repositories, commits go directly to `master`.  Commit and push only after the author has
+  agreed.  Commit messages end with the line
+  `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+
+### What has been done
+
+1. Lark has been turned into Larkita (see the specification above), with a new README and new tests.
+   Later additions: `Larkita.lex()`, the tutorial, and the option `merge_states`.
+2. The tutorial `tutorial/larkita-tutorial.tex` (author: Karl Stroetmann) explains grammars, the
+   shape of the abstract syntax trees, pattern matching, a small interpreter, syntax errors, the
+   output file, conflicts, merging states, and the API.  All listings are read from the files in
+   `tutorial/examples`; the outputs shown are produced by `examples/run_examples.py` and stored in
+   `examples/output` (committed).  `make` in `tutorial/` runs the examples and builds the PDF, which
+   is committed, too.  The README links to the PDF.
+3. Course notebooks: every notebook that used Lark exists twice.  `name.ipynb` uses Larkita and
+   `name-lark.ipynb` is the original Lark version.  Notebooks are committed without outputs.
+   `Python/Chapter-11/06-Merging-States.ipynb` demonstrates `merge_states`.
+4. The lecture notes describe Larkita instead of Lark: chapter 7 (`lark.tex`), chapter 8
+   (`lark-interpreter.tex`), chapter 11 (`lark-lalr.tex`, including the subsection 11.3.3 "Merging
+   States"), and chapter 13 (`compiler.tex`).  Decisions of the author: Lark is only mentioned in a
+   footnote in chapter 7; the pictures were kept and their captions adapted; the subtitle is
+   "An Introduction via Larkita".
+
+### Constraints
+
+* `Python/Chapter-08/Interpreter.ipynb` and `Interpreter-lark.ipynb` are solutions of an exercise.
+  They are listed in `Python/Chapter-08/.gitignore` and must never be committed.  (The Larkita
+  version was committed once by mistake; commit 883d01a stopped tracking it.  The author decided
+  not to rewrite the history.)
+* Lecture notes (details in `Lecture-Notes/CLAUDE.md`): ask before changes of taste or content;
+  listings that show notebook code must match the notebook; fonts must not become smaller (wide
+  listings are fixed with `gobble`, smaller margins, or by rewrapping the code in the notebook);
+  new notions are written as `\blue{term}\index{term}`; `formal-languages.pdf` and
+  `formal-languages.idx` are committed together with the sources.
+
+### How to check the work
+
+* Larkita: `python3 -m tests` (51 tests) and `mypy larkita`.
+* Tutorial: `cd tutorial && make`.  The build must have no errors; the only accepted warning is an
+  overfull box of 0.5pt.
+* Lecture notes: run `pdflatex -shell-escape -interaction=nonstopmode formal-languages.tex` three
+  times.  A clean build has 0 errors (`grep -c '^!' formal-languages.log`) and no "undefined" or
+  "multiply defined" references.  Too wide `minted` listings produce no warnings, so check the PDF:
+  `pdftotext -bbox formal-languages.pdf out.html` and look for words whose `xMax` exceeds 542 (the
+  text block ends at 540pt).  The only known case is the signature of `evaluate_bool` in chapter 8,
+  which stays inside its frame and is the author's code.  Render pages with
+  `pdftoppm -r 70 -f N -l N -png formal-languages.pdf page` to look at them.
+* Notebooks: execute them in the environment `fl` with nbclient (or
+  `conda run -n fl jupyter nbconvert --to notebook --execute --output /tmp/out.ipynb X.ipynb`),
+  with `PYTHONHASHSEED=0`, and never save the outputs into the repository.  Notebooks that call
+  `input()` need `input` to be redefined in the notebook's global namespace (ipykernel resets
+  `builtins.input`).  The outputs of `name.ipynb` and `name-lark.ipynb` were compared when the
+  Larkita versions were created.
+* `merge_states` was verified by fuzzing: token sequences of sample programs were mutated (deleted,
+  duplicated, swapped, replaced tokens), and the canonical and the merged parser had to return the
+  same trees and report errors at the same line and column.  Repeat this if the merging code changes.
+
+### Setting up another computer
+
+* Create the environment with `fl.sh`.  It installs Larkita from GitHub; if Larkita was installed
+  before the latest changes, update it with
+  `conda run -n fl pip install --upgrade --force-reinstall git+https://github.com/karlstroetmann/Larkita.git`.
+  On the home computer, Larkita is installed in editable mode instead:
+  `conda run -n fl pip install -e <path of this directory>`.
+* Needed tools: TeX Live with `minted` 3 (and Pygments) and the `atkinson` fonts, `mypy`, poppler
+  (`pdftotext`, `pdftoppm`), and ImageMagick (`montage`) for looking at several pages at once.
+
+### Open points (not started)
+
+* The comment in `fl.sh` still says that Larkita is "used by the *-larkita notebooks".  Since the
+  notebooks have been renamed, the notebooks without a suffix use Larkita.  Ask before changing it.
+* The lists of expected tokens in error messages depend on the hash seed (as in Lark).  Sorting them
+  would make the messages reproducible; the tutorial avoids the problem with `PYTHONHASHSEED=0`.
+
+### How the author likes to work
+
+* Asks for an assessment before larger changes; give a recommendation instead of a list of options.
+* Ask when in doubt about questions of taste or content; report results honestly, including
+  problems that were found (e.g. the contextual lexer issue found while fuzzing `merge_states`).
+* Documents and comments are written in English.
