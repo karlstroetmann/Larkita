@@ -215,7 +215,7 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
   <https://github.com/karlstroetmann/Formal-Languages>, branch `master`.
   * `Lecture-Notes/`: the LaTeX lecture notes.  Its own `CLAUDE.md` contains the author's rules.
   * `Python/Chapter-NN/`: the Jupyter notebooks, numbered like the chapters.
-  * `fl.sh`: creates the conda environment `fl` and installs Larkita from GitHub.
+  * `fl.sh`: creates the conda environment `fl` and installs Larkita from PyPI.
 * In both repositories, commits go directly to `master`.  Commit and push only after the author has
   agreed.  Commit messages end with the line
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
@@ -238,6 +238,8 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
    States"), and chapter 13 (`compiler.tex`).  Decisions of the author: Lark is only mentioned in a
    footnote in chapter 7; the pictures were kept and their captions adapted; the subtitle is
    "An Introduction via Larkita".
+5. Larkita is published on PyPI (<https://pypi.org/project/larkita/>); the first version, 0.1.0, was
+   released on 2026-10-30.  It needs Python 3.12 or newer.  See "Releasing a new version on PyPI".
 
 ### Constraints
 
@@ -276,13 +278,26 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 
 ### Setting up another computer
 
-* Create the environment with `fl.sh`.  It installs Larkita from GitHub; if Larkita was installed
-  before the latest changes, update it with
+* Create the environment with `fl.sh`.  It installs Larkita from PyPI; update it with
+  `conda run -n fl pip install --upgrade larkita`.  Changes that have not been released yet are
+  installed from GitHub with
   `conda run -n fl pip install --upgrade --force-reinstall git+https://github.com/karlstroetmann/Larkita.git`.
   On the home computer, Larkita is installed in editable mode instead:
   `conda run -n fl pip install -e <path of this directory>`.
 * Needed tools: TeX Live with `minted` 3 (and Pygments) and the `atkinson` fonts, `mypy`, poppler
   (`pdftotext`, `pdftoppm`), and ImageMagick (`montage`) for looking at several pages at once.
+
+### Releasing a new version on PyPI
+
+1. Increase `__version__` in `larkita/__init__.py`, commit, and push.
+2. Run `git tag -a vX.Y.Z -m "Larkita X.Y.Z"` and `git push origin vX.Y.Z`.
+
+The workflow `.github/workflows/publish.yml` checks that the tag matches `__version__`, runs the tests
+with Python 3.12, builds the package, and uploads it to PyPI via Trusted Publishing: PyPI trusts this
+workflow, so no token is needed.  The publisher is configured in the PyPI account `KarlStroetmann`,
+which uses two-factor authentication.  A version can never be uploaded twice.  `gh` is not installed
+on every computer; the state of the last run is shown by
+`curl -s "https://api.github.com/repos/karlstroetmann/Larkita/actions/runs?per_page=1"`.
 
 ### Open points (not started)
 
