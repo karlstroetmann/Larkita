@@ -116,14 +116,17 @@ The following points make the rules above precise.
     The literals are listed in textual order, one entry per occurrence, so
     `"for" "(" assignment ";" expr ";" assignment ")" statement` has the head
     `("for", "(", ";", ";", ")")`.  Literals inside repetitions, optional parts
-    and nested groups belong to the head as well.
+    and nested groups belong to the head as well, except for the literals of the
+    inner alternatives described in 5.
 
 2.  **Pass-through.**  If an alternative has no head (all its literals are ignored
     or there are none), consists of exactly one symbol, contains no `*`, `+`, `?`,
     `[...]` or `|` operators, and has no alias, then it returns the abstract syntax
     tree of that symbol unchanged.  Examples: (d), (g), and `expr: product`.
     This is decided statically, so `program: statement*` never passes through,
-    not even when the input contains exactly one statement.
+    not even when the input contains exactly one statement.  The inner alternatives
+    that are expanded according to 5 do not count as `|` operators, so
+    `a: (b | "-" b)` passes the abstract syntax tree of `b` through.
 
 3.  **Rule name as head.**  If an alternative has no head and is not a pass-through,
     the name of the rule is used as head.  For example, `program: statement*`
@@ -133,38 +136,52 @@ The following points make the rules above precise.
 4.  **Flattening.**  Groups and repetitions are flattened into the tuple of the
     alternative they occur in, as in (h) and (i).
 
-5.  **Optional parts.**  An optional part (`[...]` or `?`) that is absent is simply
+5.  **Inner alternatives.**  An inner alternative `( ... | ... )` that does not
+    occur inside a repetition or an optional part abbreviates several alternatives:
+    `expr: expr ("+" | "-") product` means `expr: expr "+" product | expr "-" product`.
+    These alternatives are formed before the heads are computed, so `1 - 2` yields
+    `("-", ast(1), ast(2))`.  Inside a repetition or an optional part, this is not
+    possible, since the head of the tuple that collects the repeated parts cannot
+    depend on the input.  There, and in an alternative with an alias, the literals
+    of an inner alternative do not belong to the head.  Instead, the literal that has
+    been read becomes a child of the tuple, as a plain string:
+    `expr: product (("+" | "-") product)*` yields
+    `("expr", ast(p_1), "-", ast(p_2), "+", ast(p_3))` for `p_1 - p_2 + p_3`.  The
+    child is the literal as written in the grammar, also for literals like `"and"i`
+    that ignore case.  Literals that are ignored are dropped as usual.
+
+6.  **Optional parts.**  An optional part (`[...]` or `?`) that is absent is simply
     left out of the tuple; there is no `None` placeholder.
 
-6.  **Named tokens.**  A named token always becomes `(NAME, text)`.  The text is
+7.  **Named tokens.**  A named token always becomes `(NAME, text)`.  The text is
     never converted, so `NUMBER` yields `("NUMBER", "42")`.  Inline regular
     expressions `/.../` in a rule are treated like named tokens.
 
-7.  **Aliases.**  An alias replaces the whole head.  `-> "call"` and `-> call`
+8.  **Aliases.**  An alias replaces the whole head.  `-> "call"` and `-> call`
     mean the same.
 
-8.  **The three forms of `%ignore`.**
+9.  **The three forms of `%ignore`.**
     * `%ignore WS` (a named terminal on its own line): the lexer skips the token.
     * `%ignore "(", ")"` written after an alternative: these literals are dropped
       from the abstract syntax tree of *that alternative*.
     * `%ignore: "(", ")", "{", "}"` (with a colon) on its own line: these literals
       are dropped from the abstract syntax trees of *all* rules.
 
-9.  **Conflicts.**  Shift/reduce conflicts are resolved in favour of shift and
+10. **Conflicts.**  Shift/reduce conflicts are resolved in favour of shift and
     reported as a warning.  Reduce/reduce conflicts are errors (unless the rules
     have different priorities).  All conflicts are listed in the output file.
 
-10. **Output file.**  If the grammar is read from a file, the output file has the
+11. **Output file.**  If the grammar is read from a file, the output file has the
     same name with the extension `.out` and lives in the same directory
     (`expr.g` produces `expr.out`).  If the grammar is given as a string, the
     file is `grammar.out` in the current directory.  For every state it lists
     all items (kernel and closure) in the form `A → α • β  { lookaheads }`,
     followed by the actions, the gotos and the conflicts of that state.
 
-11. **Start symbol.**  The start symbol is the first rule of the grammar, unless
+12. **Start symbol.**  The start symbol is the first rule of the grammar, unless
     another start symbol is given explicitly.
 
-12. **Merging states (optional).**  With `merge_states=True`, states with the same
+13. **Merging states (optional).**  With `merge_states=True`, states with the same
     core are merged after the canonical automaton has been built, as long as this
     introduces no new conflict (also not in the successors) and, with the contextual
     lexer, does not change how the input is split into tokens.  The parser then
@@ -187,7 +204,9 @@ The following points make the rules above precise.
 ## Code map
 
 * `larkita/larkita.py`: the class `Larkita` (entry point).
-* `larkita/load_grammar.py`: grammar loader; `_make_ast_spec` computes the head of an alternative.
+* `larkita/load_grammar.py`: grammar loader; `_make_ast_spec` computes the head of an alternative,
+  after `_expand_alternatives` has expanded its inner alternatives and `_mark_child_literals` has
+  marked the literals that become children (clarification 5).
 * `larkita/lr_analysis.py`: canonical LR(1) automaton, parse table, conflict resolution, and the
   optional merging of states (`_merge_states`).
 * `larkita/ast_builder.py`: the reduction callbacks that build the nested tuples.
@@ -230,8 +249,8 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
    `tutorial/examples`; the outputs shown are produced by `examples/run_examples.py` and stored in
    `examples/output` (committed).  `make` in `tutorial/` runs the examples and builds the PDF, which
    is committed, too.  The README links to the PDF.
-3. Course notebooks: every notebook that used Lark exists twice.  `name.ipynb` uses Larkita and
-   `name-lark.ipynb` is the original Lark version.  Notebooks are committed without outputs.
+3. Course notebooks: all notebooks that used Lark use Larkita now.  The Lark versions
+   (`name-lark.ipynb`) were deleted on 2026-10-30.  Notebooks are committed without outputs.
    `Python/Chapter-11/06-Merging-States.ipynb` demonstrates `merge_states`.
 4. The lecture notes describe Larkita instead of Lark: chapter 7 (`lark.tex`), chapter 8
    (`lark-interpreter.tex`), chapter 11 (`lark-lalr.tex`, including the subsection 11.3.3 "Merging
@@ -240,13 +259,16 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
    "An Introduction via Larkita".
 5. Larkita is published on PyPI (<https://pypi.org/project/larkita/>); the first version, 0.1.0, was
    released on 2026-10-30.  It needs Python 3.12 or newer.  See "Releasing a new version on PyPI".
+6. Version 0.2.0 changes the abstract syntax trees of inner alternatives (clarification 5).  Before,
+   all their literals belonged to the head, so `1 + 2` and `1 - 2` yielded the same tree for
+   `expr: product (("+" | "-") product)*`.  Of the course notebooks, only
+   `Python/Chapter-07/01-Calculator-EBNF.ipynb` uses inner alternatives with literals.
 
 ### Constraints
 
-* `Python/Chapter-08/Interpreter.ipynb` and `Interpreter-lark.ipynb` are solutions of an exercise.
-  They are listed in `Python/Chapter-08/.gitignore` and must never be committed.  (The Larkita
-  version was committed once by mistake; commit 883d01a stopped tracking it.  The author decided
-  not to rewrite the history.)
+* `Python/Chapter-08/Interpreter.ipynb` is the solution of an exercise.  It is listed in
+  `Python/Chapter-08/.gitignore` and must never be committed.  (It was committed once by mistake;
+  commit 883d01a stopped tracking it.  The author decided not to rewrite the history.)
 * Lecture notes (details in `Lecture-Notes/CLAUDE.md`): ask before changes of taste or content;
   listings that show notebook code must match the notebook; fonts must not become smaller (wide
   listings are fixed with `gobble`, smaller margins, or by rewrapping the code in the notebook);
@@ -255,7 +277,7 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 
 ### How to check the work
 
-* Larkita: `python3 -m tests` (51 tests) and `mypy larkita`.
+* Larkita: `python3 -m tests` (56 tests) and `mypy larkita`.
 * Tutorial: `cd tutorial && make`.  The build must have no errors and no overfull boxes.  The only
   accepted warnings are the two hyperref warnings "Token not allowed in a PDF string", which come from
   `\Lark` in the title of the subsection "Differences from Lark".

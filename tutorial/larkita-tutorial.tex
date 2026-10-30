@@ -329,7 +329,8 @@ tuple «\verb|('program',)|», which has no children.
 
 \subsection{Repetitions and groups}
 The children produced by repetitions and groups are inserted into the tuple of the alternative in which they
-occur.  Literals that occur inside repetitions, optional parts, and groups belong to the head:
+occur.  Except for the inner alternatives discussed in Section \ref{sec:inner-alternatives}, literals that
+occur inside repetitions, optional parts, and groups belong to the head:
 \resultfile{shapes-flatten}
 Note that the head is determined by the grammar, not by the input:  The head of the abstract syntax tree of
 «\texttt{[1]}» contains a comma, although no comma has been read.  Therefore, all lists produced by this
@@ -340,6 +341,19 @@ If an optional part is missing, it is simply left out:
 \resultfile{shapes-optional}
 There is no placeholder like \texttt{None}, so the number of children tells whether the optional part has
 been present.
+
+\subsection{Inner alternatives}
+\label{sec:inner-alternatives}
+An \blue{inner alternative} like «\verb!("+" | "-")!» abbreviates several alternatives.  In the following
+example, the first alternative of \texttt{sum} stands for the two alternatives «\verb!sum "+" NUM!» and
+«\verb!sum "-" NUM!».  Therefore, the literal that has been read is the head:
+\resultfile{shapes-alternatives}
+Inside a repetition or an optional part, an inner alternative cannot be expanded in this way, since a single
+tuple collects all the repeated parts and the head of this tuple is determined by the grammar.  Instead, the
+literal that has been read becomes a child of the tuple.  As it is a literal, it is represented by a plain
+string rather than by a pair:
+\resultfile{shapes-alternatives-repeated}
+The same holds for an alternative with an alias, since the alias is its head.
 
 \subsection{Ignoring literals}
 Some literals are needed for parsing, but they carry no information once the abstract syntax tree has been
@@ -397,6 +411,10 @@ program: stmnt*
     ⇒ ('program', ast(stmnt_1), ..., ast(stmnt_n))
 ret: "return" [expr] ";"
     ⇒ (('return', ';'),)  or  (('return', ';'), ast(expr))
+expr: expr ("+" | "-") product
+    ⇒ ('+', ast(expr), ast(product))  or  ('-', ast(expr), ast(product))
+expr: product (("+" | "-") product)*
+    ⇒ ('expr', ast(product_1), '-', ast(product_2), ...)
 \end{minted}
 \end{unbreakable}
 

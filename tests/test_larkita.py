@@ -88,7 +88,7 @@ class TestSpecificationExamples(LarkitaTestCase):
 
 
 class TestClarifications(LarkitaTestCase):
-    "The clarifications 1 - 11 in Claude.md"
+    "The clarifications 1 - 12 in Claude.md"
 
     def test_head_has_one_entry_per_occurrence(self):
         g = 'a: "for" "(" b ";" b ";" b ")"\nb: NUMBER'
@@ -133,9 +133,38 @@ class TestClarifications(LarkitaTestCase):
         head = ('if', 'then', 'else')
         self.assertEqual(self.parse(g, 'if 1 then 2'), (head, ('NUMBER', '1'), ('NUMBER', '2')))
 
-    def test_inline_alternatives(self):
+    def test_inner_alternatives_are_expanded(self):
         g = 'a: b ("+" | "-") b\nb: NUMBER'
-        self.assertEqual(self.parse(g, '1 - 2'), (('+', '-'), ('NUMBER', '1'), ('NUMBER', '2')))
+        self.assertEqual(self.parse(g, '1 - 2'), ('-', ('NUMBER', '1'), ('NUMBER', '2')))
+        g = 'a: "if" b ("then" | ":") b\nb: NUMBER'
+        self.assertEqual(self.parse(g, 'if 1 : 2'), (('if', ':'), ('NUMBER', '1'), ('NUMBER', '2')))
+        g = 'a: (b | "-" b)\nb: NUMBER'
+        self.assertEqual(self.parse(g, '1'), ('NUMBER', '1'))
+        self.assertEqual(self.parse(g, '-1'), ('-', ('NUMBER', '1')))
+
+    def test_literals_of_inner_alternatives_in_repetitions_are_children(self):
+        g = 'expr: product (("+" | "-") product)*\nproduct: NUMBER'
+        self.assertEqual(self.parse(g, '1 - 2 + 3'),
+                         ('expr', ('NUMBER', '1'), '-', ('NUMBER', '2'), '+', ('NUMBER', '3')))
+        g = 'a: b [("+" | "-") b]\nb: NUMBER'
+        self.assertEqual(self.parse(g, '1 + 2'), ('a', ('NUMBER', '1'), '+', ('NUMBER', '2')))
+        self.assertEqual(self.parse(g, '1'), ('a', ('NUMBER', '1')))
+        g = 'a: b (("and"i | "or"i) b)*\nb: NUMBER'
+        self.assertEqual(self.parse(g, '1 AND 2'), ('a', ('NUMBER', '1'), 'and', ('NUMBER', '2')))
+
+    def test_literals_of_inner_alternatives_with_alias_are_children(self):
+        g = 'a: b ("+" | "-") b -> binop\nb: NUMBER'
+        self.assertEqual(self.parse(g, '1 - 2'), ('binop', ('NUMBER', '1'), '-', ('NUMBER', '2')))
+
+    def test_ignored_literals_of_inner_alternatives(self):
+        g = 'a: b (("+" | "-") b)*  %ignore "+"\nb: NUMBER'
+        self.assertEqual(self.parse(g, '1 + 2 - 3'), ('a', ('NUMBER', '1'), ('NUMBER', '2'), '-', ('NUMBER', '3')))
+
+    def test_same_repetition_with_literal_in_head_and_as_child(self):
+        # The rules x and y must not share the auxiliary rule for ("," b)*
+        g = 'a: x | y\nx: b ("," b)*\ny: "!" b [("," b)* | ";"]\nb: NUMBER'
+        self.assertEqual(self.parse(g, '1, 2'), (',', ('NUMBER', '1'), ('NUMBER', '2')))
+        self.assertEqual(self.parse(g, '! 1, 2'), ('!', ('NUMBER', '1'), ',', ('NUMBER', '2')))
 
     def test_named_tokens_and_regexps(self):
         g = 'a: NUMBER /[a-z]+/'
@@ -383,6 +412,15 @@ class TestOutputFile(LarkitaTestCase):
         # Canonical LR(1) keeps the two occurrences of b apart
         self.assertIn('b → NUMBER •  { "x" }', report)
         self.assertIn('b → NUMBER •  { "z" }', report)
+
+    def test_literals_that_are_children_are_shown(self):
+        g = 'expr: NUMBER (("+" | "-") NUMBER)*'
+        out_file = os.path.join(self.tmpdir, 'children.out')
+        self.make(g, out_file=out_file)
+        with open(out_file, encoding='utf8') as f:
+            report = f.read()
+        self.assertIn('__expr_star_0 → "-" NUMBER', report)
+        self.assertIn('⇒ ["-", ("NUMBER", text)]', report)
 
 
 class TestErrors(LarkitaTestCase):

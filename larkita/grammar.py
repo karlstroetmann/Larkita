@@ -34,21 +34,26 @@ class Symbol:
 
 class Terminal(Symbol):
     """A terminal in a rule.  ``filter_out`` is true if it was written as a string literal,
-    so that it becomes part of the head instead of a child of the abstract syntax tree."""
-    __slots__ = ('filter_out',)
+    so that it becomes part of the head instead of a child of the abstract syntax tree.
+    A string literal inside an inner alternative that could not be expanded (see
+    ``load_grammar._expand_alternatives``) is a child instead; then ``text`` is the literal."""
+    __slots__ = ('filter_out', 'text')
 
     is_term: ClassVar[bool] = True
 
-    def __init__(self, name: str, filter_out: bool = False) -> None:
+    text: Optional[str]
+
+    def __init__(self, name: str, filter_out: bool = False, text: Optional[str] = None) -> None:
         self.name = name
         self.filter_out = filter_out
+        self.text = text
 
     @property
     def fullrepr(self):
-        return '%s(%r, %r)' % (type(self).__name__, self.name, self.filter_out)
+        return '%s(%r, %r, %r)' % (type(self).__name__, self.name, self.filter_out, self.text)
 
     def renamed(self, f):
-        return type(self)(f(self.name), self.filter_out)
+        return type(self)(f(self.name), self.filter_out, self.text)
 
 
 class NonTerminal(Symbol):

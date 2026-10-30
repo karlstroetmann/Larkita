@@ -190,6 +190,18 @@ SMALL_FACTOR_THRESHOLD = 5
 REPEAT_BREAK_THRESHOLD = 50
 
 
+def _terminal_kinds(tree) -> Tuple[str, ...]:
+    """The full representations of the terminals in ``tree``.  Two trees are equal if their terminals
+    have the same names, even if a terminal is a child of the abstract syntax tree in one tree and part
+    of the head in the other.  Therefore, the auxiliary rules are cached by the tree together with these
+    representations."""
+    if isinstance(tree, Terminal):
+        return (tree.fullrepr,)
+    if isinstance(tree, Tree):
+        return tuple(t.fullrepr for t in tree.scan_values(lambda v: isinstance(v, Terminal)))
+    return ()
+
+
 @inline_args
 class EBNF_to_BNF(Transformer_InPlace):
     def __init__(self):
@@ -210,8 +222,9 @@ class EBNF_to_BNF(Transformer_InPlace):
         return t
 
     def _add_recurse_rule(self, type_: str, expr: Tree):
+        key = (expr, _terminal_kinds(expr))
         try:
-            return self.rules_cache[expr]
+            return self.rules_cache[key]
         except KeyError:
             new_name = self._name_rule(type_)
             t = NonTerminal(new_name)
@@ -219,7 +232,7 @@ class EBNF_to_BNF(Transformer_InPlace):
                 ST('expansion', [expr]),
                 ST('expansion', [t, expr])
             ])
-            return self._add_rule(expr, new_name, tree)
+            return self._add_rule(key, new_name, tree)
 
     def _add_repeat_rule(self, a, b, target, atom):
         """Generate a rule that repeats target ``a`` times, and repeats atom ``b`` times.
@@ -233,7 +246,7 @@ class EBNF_to_BNF(Transformer_InPlace):
             new_rule: target target target atom atom atom atom
 
         """
-        key = (a, b, target, atom)
+        key = (a, b, target, atom, _terminal_kinds(atom))
         try:
             return self.rules_cache[key]
         except KeyError:
@@ -266,7 +279,7 @@ class EBNF_to_BNF(Transformer_InPlace):
                     | target target target atom atom atom
 
         """
-        key = (a, b, target, atom, "opt")
+        key = (a, b, target, atom, _terminal_kinds(atom), "opt")
         try:
             return self.rules_cache[key]
         except KeyError:
@@ -411,6 +424,16 @@ class PrepareAnonTerminals(Transformer_InPlace):
 
     @inline_args
     def pattern(self, p):
+        # String literals become part of the head of the abstract syntax tree, regular expressions become children
+        return Terminal(self._terminal_name(p), filter_out=isinstance(p, PatternStr))
+
+    @inline_args
+    def child_pattern(self, p):
+        # A string literal inside an inner alternative that could not be expanded becomes a child
+        assert isinstance(p, PatternStr), p
+        return Terminal(self._terminal_name(p), text=p.value)
+
+    def _terminal_name(self, p):
         value = p.value
         if p in self.term_reverse and p.flags != self.term_reverse[p].pattern.flags:
             raise GrammarError(u'Conflicting flags for the same terminal: %s' % p)
@@ -450,8 +473,7 @@ class PrepareAnonTerminals(Transformer_InPlace):
             self.term_reverse[p] = termdef
             self.terminals.append(termdef)
 
-        # String literals become part of the head of the abstract syntax tree, regular expressions become children
-        return Terminal(term_name, filter_out=isinstance(p, PatternStr))
+        return term_name
 
 
 def _rfind(s, choices):
@@ -521,6 +543,9 @@ def _literal_to_pattern(literal):
 class PrepareLiterals(Transformer_InPlace):
     def literal(self, literal):
         return ST('pattern', [_literal_to_pattern(literal)])
+
+    def child_literal(self, literal):
+        return ST('child_pattern', [_literal_to_pattern(literal)])
 
     def range(self, start, end):
         assert start.type == end.type == 'STRING'
@@ -607,10 +632,11 @@ def _make_ast_spec(rule_name: str, expansion: Tree, ignore: Set[str], alias: Opt
     """Determines how the abstract syntax tree of an alternative is built (see Claude.md).
 
     The head is computed statically from the alternative as it is written: it consists of
-    all string literals of the alternative that are not ignored, in textual order.
+    all string literals of the alternative that are not ignored, in textual order.  The string
+    literals that have been marked by ``_mark_child_literals`` are children instead.
     """
     literals: List[str] = []
-    symbols = 0         # number of nonterminals, named terminals and regular expressions
+    symbols = 0         # number of nonterminals, named terminals, regular expressions and child literals
     is_simple = True    # no EBNF operators and no inner alternatives
 
     def visit(node):
@@ -631,7 +657,7 @@ def _make_ast_spec(rule_name: str, expansion: Tree, ignore: Set[str], alias: Opt
             else:
                 symbols += 1
             return
-        if node.data == 'range':
+        if node.data in ('child_literal', 'range'):
             symbols += 1
             return
         if node.data in ('expr', 'maybe') or (node.data == 'expansions' and len(node.children) > 1):
@@ -651,8 +677,45 @@ def _make_ast_spec(rule_name: str, expansion: Tree, ignore: Set[str], alias: Opt
     return AstSpec(rule_name)
 
 
+def _expand_alternatives(tree: Tree) -> List[Tree]:
+    """Returns the alternatives that the inner alternatives of ``tree`` abbreviate.
+
+    For example, ``expr ("+" | "-") product`` abbreviates the two alternatives ``expr "+" product``
+    and ``expr "-" product``, so the literal that has been read becomes the head.  Inner alternatives
+    inside repetitions and optional parts are not expanded, since the head of the tuple that collects
+    the repeated parts cannot depend on the input.  Their literals become children instead.
+    """
+    if tree.data == 'expansions':
+        return [variant for child in tree.children for variant in _expand_alternatives(child)]
+    if tree.data == 'expansion':
+        variants: List[List] = [[]]
+        for child in tree.children:
+            options = (_expand_alternatives(child)
+                       if isinstance(child, Tree) and child.data in ('expansion', 'expansions') else [child])
+            variants = [variant + [option] for variant in variants for option in options]
+        return [ST('expansion', variant) for variant in variants]
+    return [tree]
+
+
+def _mark_child_literals(tree: Tree, ignore: Set[str], inside: bool = False) -> None:
+    """Marks the string literals inside the inner alternatives of ``tree`` that are not ignored:
+    they become children of the abstract syntax tree (see ``_expand_alternatives``)."""
+    for child in tree.children:
+        if not isinstance(child, Tree):
+            continue
+        if child.data == 'literal':
+            token ,= child.children
+            if inside and token.type == 'STRING' and _literal_text(token) not in ignore:
+                child.data = 'child_literal'
+        else:
+            _mark_child_literals(child, ignore,
+                                 inside or (child.data == 'expansions' and len(child.children) > 1))
+
+
 def _attach_ast_specs(rule_name: str, tree: Tree, ast_ignore: Set[str]) -> None:
-    """Replaces every alternative of the rule by an ``alias`` node that carries its AstSpec.
+    """Replaces every alternative of the rule by ``alias`` nodes that carry the AstSpecs of the
+    alternatives that it abbreviates (see ``_expand_alternatives``).  An alternative with an alias
+    is not expanded, since its head is the alias.
 
     SimplifyRule_Visitor later copies the AstSpec to all BNF rules that are derived from the
     alternative, and RuleTreeToText hands it over to the Rule objects.
@@ -661,7 +724,8 @@ def _attach_ast_specs(rule_name: str, tree: Tree, ast_ignore: Set[str]) -> None:
     while tree.expand_kids_by_data('expansions'):   # alternatives that were added with %extend
         pass
 
-    for i, alternative in enumerate(tree.children):
+    alternatives = []
+    for alternative in tree.children:
         alias = None
         ignore = ast_ignore
         if alternative.data == 'alias':
@@ -675,7 +739,15 @@ def _attach_ast_specs(rule_name: str, tree: Tree, ast_ignore: Set[str]) -> None:
                 alias = arg.name
         else:
             expansion = alternative
-        tree.children[i] = ST('alias', [expansion, _make_ast_spec(rule_name, expansion, ignore, alias)])
+        if alias is None:
+            # The variants are copied, since _mark_child_literals and the later steps change them in place
+            variants = [nr_deepcopy_tree(variant) for variant in dedup_list(_expand_alternatives(expansion))]
+        else:
+            variants = [expansion]
+        for variant in variants:
+            _mark_child_literals(variant, ignore)
+            alternatives.append(ST('alias', [variant, _make_ast_spec(rule_name, variant, ignore, alias)]))
+    tree.children = alternatives
 
 
 class Grammar:

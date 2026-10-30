@@ -108,6 +108,8 @@ quotes form the **head** of the tuple; all other symbols become its **children**
 | `set: "{" expr ("," expr)* "}"` | `(("{", ",", "}"), ast(expr_1), ..., ast(expr_n))` |
 | `program: statement*` | `("program", ast(statement_1), ..., ast(statement_n))` |
 | `stmnt: "return" [expr] ";"` | `(("return", ";"),)` or `(("return", ";"), ast(expr))` |
+| `expr: expr ("+" \| "-") product` | `("+", ast(expr), ast(product))` or `("-", ast(expr), ast(product))` |
+| `expr: product (("+" \| "-") product)*` | `("expr", ast(product_1), "-", ast(product_2), ...)` |
 
 In detail:
 
@@ -116,12 +118,21 @@ In detail:
   there is exactly one literal, the head is that string; otherwise it is a tuple
   of strings.  The head is fixed by the grammar, not by the input: `f(a)` with the
   rule for `args` above yields `(",", ast(a))`, even though no comma was read.
-  Literals inside repetitions, optional parts and groups belong to the head, too.
+  Literals inside repetitions, optional parts and groups belong to the head, too,
+  except for the literals of inner alternatives inside repetitions and optional parts.
+* **Inner alternatives** like `("+" | "-")` abbreviate several alternatives:
+  `expr: expr ("+" | "-") product` means `expr: expr "+" product | expr "-" product`,
+  so the literal that has been read is the head.  Inside a repetition or an optional
+  part, and in an alternative with an alias, the head cannot depend on the input.
+  There, the literal that has been read becomes a child of the tuple, as a plain
+  string: `1 - 2 + 3` yields `("expr", ast(1), "-", ast(2), "+", ast(3))` with the
+  rule `expr: product (("+" | "-") product)*`.
 * **Named tokens** become `(NAME, text)`, e.g. `("NUMBER", "42")`.  The text is
   not converted.  Inline regular expressions `/.../` are treated like named tokens.
 * **Pass-through.**  If an alternative has no head and consists of exactly one
   symbol (with no `*`, `+`, `?`, `[...]` or `|`), it returns the abstract syntax
-  tree of that symbol unchanged.
+  tree of that symbol unchanged.  Inner alternatives are expanded first, so
+  `a: (b | "-" b)` passes the abstract syntax tree of `b` through.
 * **Rule name as head.**  If an alternative has no head and is not a pass-through,
   the name of the rule is used as head, e.g. `("program", ...)`.  An empty
   alternative yields `("rule_name",)`.

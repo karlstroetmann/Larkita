@@ -4,7 +4,10 @@ An abstract syntax tree is a nested tuple.  For a rule whose ``AstSpec`` has a h
 yields ``(head, child_1, ..., child_n)``, where the children are
 
 * the abstract syntax trees of the nonterminals of the rule,
-* ``(NAME, text)`` for every named token (string literals are never children), and
+* ``(NAME, text)`` for every named token,
+* the string literals that occur inside an inner alternative that could not be expanded
+  (inside a repetition or an optional part, or if the alternative has an alias), as plain strings
+  (all other string literals belong to the head), and
 * the spliced children of the auxiliary rules that were created for EBNF repetitions.
 
 The auxiliary rules have no ``AstSpec``; their reductions yield a plain list of children.
@@ -16,7 +19,7 @@ from typing import Callable, Dict, List, Set, Tuple
 
 from .grammar import Rule, Terminal
 
-_NODE, _TOKEN, _SPLICE = range(3)
+_NODE, _TOKEN, _LITERAL, _SPLICE = range(4)
 
 
 def _plan(rule: Rule, aux_names: Set[str]) -> List[Tuple[int, int]]:
@@ -24,7 +27,9 @@ def _plan(rule: Rule, aux_names: Set[str]) -> List[Tuple[int, int]]:
     plan = []
     for i, sym in enumerate(rule.expansion):
         if isinstance(sym, Terminal):
-            if not sym.filter_out:
+            if sym.text is not None:
+                plan.append((i, _LITERAL))
+            elif not sym.filter_out:
                 plan.append((i, _TOKEN))
         elif sym.name in aux_names:
             plan.append((i, _SPLICE))
@@ -35,6 +40,7 @@ def _plan(rule: Rule, aux_names: Set[str]) -> List[Tuple[int, int]]:
 
 def _make_callback(rule: Rule, aux_names: Set[str]) -> Callable:
     plan = _plan(rule, aux_names)
+    expansion = rule.expansion
 
     def collect(children):
         result = []
@@ -44,6 +50,8 @@ def _make_callback(rule: Rule, aux_names: Set[str]) -> Callable:
                 result.append(child)
             elif kind == _TOKEN:
                 result.append((child.type, child.value))
+            elif kind == _LITERAL:
+                result.append(expansion[i].text)    # the literal as written in the grammar
             elif result:
                 result += child
             else:
@@ -56,6 +64,7 @@ def _make_callback(rule: Rule, aux_names: Set[str]) -> Callable:
 
     if spec.passthrough:
         (i, kind), = plan
+        assert kind != _LITERAL, rule
         if kind == _TOKEN:
             return lambda children: (children[i].type, children[i].value)
         assert kind == _NODE, rule
@@ -85,11 +94,15 @@ def describe_ast(rule: Rule, aux_names: Set[str]) -> str:
     ``("+", ast(expr), ast(product))``.  ``*name`` denotes the spliced children of an auxiliary rule."""
     parts = []
     for i, kind in _plan(rule, aux_names):
-        name = rule.expansion[i].name
+        sym = rule.expansion[i]
+        name = sym.name
         if kind == _NODE:
             parts.append('ast(%s)' % name)
         elif kind == _TOKEN:
             parts.append('(%s, text)' % quote(name))
+        elif kind == _LITERAL:
+            assert isinstance(sym, Terminal) and sym.text is not None
+            parts.append(quote(sym.text))
         else:
             parts.append('*' + name)
     spec = rule.ast

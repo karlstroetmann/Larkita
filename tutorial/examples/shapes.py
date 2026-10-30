@@ -59,6 +59,15 @@ show('optional', r'''
 ret: "return" [NUM] ";"
 ''', 'return 1;', 'return;')
 
+show('alternatives', r'''
+sum: sum ("+" | "-") NUM
+   | NUM
+''', '1 - 2', '1 + 2 - 3')
+
+show('alternatives-repeated', r'''
+sum: NUM (("+" | "-") NUM)*
+''', '1 - 2', '1 + 2 - 3', '1')
+
 show('ignore', r'''
 sum: sum "+" atom
    | atom
