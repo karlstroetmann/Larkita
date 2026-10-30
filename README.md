@@ -3,7 +3,9 @@
 Larkita is a light-weight version of the Python parser generator
 [Lark](https://github.com/lark-parser/lark).  It differs from Lark in three ways:
 
-* It always generates a **canonical LR(1) parser** (not LALR, Earley or CYK).
+* It generates a **canonical LR(1) parser** (not Earley or CYK).  On request, it
+  merges states with the same core; for an LALR(1) grammar and the basic lexer,
+  the result is the LALR(1) parser.
 * The parser returns the **abstract syntax tree as a nested tuple**, not as a tree
   of objects.  How the tuple is built follows from the grammar itself; you never
   have to write tree-building code.
@@ -16,15 +18,12 @@ the abstract syntax tree.
 
 ## Installation
 
-Larkita needs Python 3.12 or newer and has no dependencies.  The source code is
-on GitHub at <https://github.com/karlstroetmann/Larkita>.  To install it, run
+Larkita needs Python 3.12 or newer and has no dependencies.  Install it with
 
-    git clone https://github.com/karlstroetmann/Larkita.git
-    cd Larkita
-    pip install .
+    pip install larkita
 
-or simply put the directory `larkita` on your `PYTHONPATH`.  You can also install
-Larkita directly from GitHub:
+The source code is on GitHub at <https://github.com/karlstroetmann/Larkita>.  To
+install the latest version from there, run
 
     pip install git+https://github.com/karlstroetmann/Larkita.git
 
@@ -81,11 +80,13 @@ The start symbol is the first rule of the grammar (here `stmnt`).
 
 ## Tutorial
 
-The tutorial [`tutorial/larkita-tutorial.pdf`](tutorial/larkita-tutorial.pdf)
+The tutorial
+[`tutorial/larkita-tutorial.pdf`](https://github.com/karlstroetmann/Larkita/blob/master/tutorial/larkita-tutorial.pdf)
 explains how to write grammars for Larkita, how the abstract syntax trees are
 built, how to process them with `match`, and how to deal with syntax errors and
-conflicts.  Its grammars and programs are in `tutorial/examples`; running `make`
-in the directory `tutorial` runs them and rebuilds the PDF.
+conflicts.  Its grammars and programs are in the directory `tutorial/examples` of
+the repository; running `make` in the directory `tutorial` runs them and rebuilds
+the PDF.
 
 ## How the abstract syntax tree is built
 
@@ -261,10 +262,11 @@ After construction, `parser.conflicts`, `parser.rules`, `parser.terminals`,
 
 ## Examples and tests
 
-The directory `new-syntax` contains two example grammars: `expr.g` (arithmetic
-expressions) and `interpreter.g` (a small imperative language with sets).
+The directory `new-syntax` of the repository contains two example grammars:
+`expr.g` (arithmetic expressions) and `interpreter.g` (a small imperative language
+with sets).
 
-Run the tests with
+In a clone of the repository, run the tests with
 
     python3 -m tests
 

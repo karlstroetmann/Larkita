@@ -5,7 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "larkita"
 authors = [{name = "Karl Stroetmann"}, {name = "Erez Shinan (Lark)", email = "erezshin@gmail.com"}]
-license = {text = "MIT"}
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 description = "A light-weight canonical LR(1) parser generator that returns abstract syntax trees as nested tuples"
 keywords = ["LR(1)", "parser", "parsing", "ast"]
 classifiers = [
@@ -15,20 +17,14 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Text Processing :: General",
-    "License :: OSI Approved :: MIT License",
 ]
 requires-python = ">=3.12"
 dependencies = []
 dynamic = ["version"]
 
-[project.readme]
-text = """
-Larkita is a light-weight version of the parser generator Lark (https://github.com/lark-parser/lark).
-- Always generates canonical LR(1) parsers.
-- The parsers return abstract syntax trees as nested tuples.
-- Writes a description of the LR(1) automaton (all states with their lookaheads) to an output file.
-- Uses Lark's EBNF grammar syntax, its contextual lexer, and its standard library of terminals."""
-content-type = "text/markdown"
+[project.urls]
+Homepage = "https://github.com/karlstroetmann/Larkita"
+Documentation = "https://github.com/karlstroetmann/Larkita/blob/master/tutorial/larkita-tutorial.pdf"
 
 [project.optional-dependencies]
 regex = ["regex"]
