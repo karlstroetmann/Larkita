@@ -285,8 +285,6 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 
 ### Open points (not started)
 
-* The comment in `fl.sh` still says that Larkita is "used by the *-larkita notebooks".  Since the
-  notebooks have been renamed, the notebooks without a suffix use Larkita.  Ask before changing it.
 * The lists of expected tokens in error messages depend on the hash seed (as in Lark).  Sorting them
   would make the messages reproducible; the tutorial avoids the problem with `PYTHONHASHSEED=0`.
 
