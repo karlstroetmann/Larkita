@@ -35,8 +35,8 @@ except ImportError:
     _has_regex = False
 
 if sys.version_info >= (3, 11):
-    import re._parser as sre_parse
-    import re._constants as sre_constants
+    import re._parser as sre_parse          # type: ignore
+    import re._constants as sre_constants   # type: ignore
 else:
     import sre_parse
     import sre_constants

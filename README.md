@@ -16,7 +16,7 @@ the abstract syntax tree.
 
 ## Installation
 
-Larkita needs Python 3.8 or newer and has no dependencies.  The source code is
+Larkita needs Python 3.12 or newer and has no dependencies.  The source code is
 on GitHub at <https://github.com/karlstroetmann/Larkita>.  To install it, run
 
     git clone https://github.com/karlstroetmann/Larkita.git
