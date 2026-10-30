@@ -79,6 +79,14 @@ parser = Larkita.open('new-syntax/expr.g')     # writes new-syntax/expr.out
 
 The start symbol is the first rule of the grammar (here `stmnt`).
 
+## Tutorial
+
+The tutorial [`tutorial/larkita-tutorial.pdf`](tutorial/larkita-tutorial.pdf)
+explains how to write grammars for Larkita, how the abstract syntax trees are
+built, how to process them with `match`, and how to deal with syntax errors and
+conflicts.  Its grammars and programs are in `tutorial/examples`; running `make`
+in the directory `tutorial` runs them and rebuilds the PDF.
+
 ## How the abstract syntax tree is built
 
 Consider an alternative `a: X1 X2 ... Xn`.  The literal tokens written in double
