@@ -99,7 +99,7 @@
       split into tokens.  If the grammar is LALR(1) and the basic scanner is used, the result is the LALR(1)
       parser, which has far fewer states than an LR(1) parser (see Section \ref{sec:merging}).
 \item The parser returns the abstract syntax tree as a \blue{nested tuple}.  For example, with the grammar
-      shown in Figure \ref{fig:expr.g}, the string \verb|"x := a + 3;"| is turned into the tuple
+      shown in Figure \ref{fig:expr.g}, the string «\verb|x := a + 3;|» is turned into the tuple
       \\[0.2cm]
       \hspace*{0.3cm}
       \verb|(':=', ('IDENTIFIER', 'x'),|
@@ -174,8 +174,8 @@ string.
 \resultfile{first}
 Every node of this tree is a tuple.  The first component of a tuple is called its \blue{head}: It contains the
 literals of the rule that has been used, except for the ignored ones.  The remaining components are the \blue{children}.  For example, the
-tuple \verb|('+', ('IDENTIFIER', 'a'), ('NUMBER', '3'))| represents the expression \verb|a + 3|.  Its head is
-the operator \verb|'+'| and its children represent the operands.  A token like \texttt{a} is represented as a
+tuple \verb|('+', ('IDENTIFIER', 'a'), ('NUMBER', '3'))| represents the expression «\verb|a + 3|».  Its head is
+the operator \verb|'+'| and its children represent the operands.  A token like «\texttt{a}» is represented as a
 pair consisting of the name of the terminal and the text that has been read.  Section \ref{sec:ast} explains
 the construction of the abstract syntax tree in detail.
 
@@ -253,8 +253,8 @@ The library \texttt{common.lark} defines the following terminals, among others:
 \texttt{ESCAPED\_STRING}                       & strings in double quotes \\
 \texttt{WS}, \texttt{WS\_INLINE}, \texttt{NEWLINE}
                                                & white space; white space without line breaks; line breaks \\
-\texttt{CPP\_COMMENT}, \texttt{C\_COMMENT}     & comments of the form \verb|// ...| and \verb|/* ... */| \\
-\texttt{SH\_COMMENT}                           & comments of the form \verb|# ...| \\
+\texttt{CPP\_COMMENT}, \texttt{C\_COMMENT}     & comments of the form «\verb|// ...|» and «\verb|/* ... */|» \\
+\texttt{SH\_COMMENT}                           & comments of the form «\verb|# ...|» \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -275,8 +275,8 @@ literal has no obvious name, it is called \verb|__ANON_0|, \verb|__ANON_1|, etc.
 error messages show literals in quotes instead.
 
 Keywords are handled automatically:  If a literal like \verb|"while"| can also be matched by the terminal of
-the identifiers, the string \texttt{while} is recognized as the keyword, but \texttt{whiles} or
-\texttt{while1} are still recognized as identifiers.
+the identifiers, the string «\texttt{while}» is recognized as the keyword, but «\texttt{whiles}» or
+«\texttt{while1}» are still recognized as identifiers.
 
 By default, the scanner is \blue{contextual}:  In every state of the parser, it only tries to match those
 terminals that the parser can accept in this state.  This avoids many collisions between terminals.  With the
@@ -313,7 +313,7 @@ If an alternative has no head and consists of a single symbol, then no new tuple
 abstract syntax tree of this symbol is returned.  This rule is called \blue{pass-through}.  It guarantees that
 alternatives like \verb|sum: atom| leave no trace in the abstract syntax tree:
 \resultfile{shapes-pass-through}
-The string \texttt{42} is parsed with the alternatives \verb|sum: atom| and \verb|atom: NUM|, but the result is
+The string «\texttt{42}» is parsed with the alternatives \verb|sum: atom| and \verb|atom: NUM|, but the result is
 just the pair \verb|('NUM', '42')|.
 
 \subsection{The rule name as head}
@@ -328,7 +328,7 @@ The children produced by repetitions and groups are inserted into the tuple of t
 occur.  Literals that occur inside repetitions, optional parts, and groups belong to the head:
 \resultfile{shapes-flatten}
 Note that the head is determined by the grammar, not by the input:  The head of the abstract syntax tree of
-\texttt{[1]} contains a comma, although no comma has been read.  Therefore, all lists produced by this
+«\texttt{[1]}» contains a comma, although no comma has been read.  Therefore, all lists produced by this
 alternative have the same head.
 
 \subsection{Optional parts}
@@ -400,7 +400,7 @@ ret: "return" [expr] ";"
 Abstract syntax trees that are represented as nested tuples are best processed with the \verb|match|
 statement of \textsl{Python}.  As an example, we implement a simple calculator.  Its grammar
 \texttt{calc.g}, which is shown in Figure \ref{fig:calc.g}, extends the grammar \texttt{expr.g}:  A program
-is a sequence of statements, the statement \verb|print expr;| prints the value of an expression, and there is
+is a sequence of statements, the statement «\verb|print expr;|» prints the value of an expression, and there is
 a unary minus.
 \grammarfile{calc.g}{The grammar \texttt{calc.g} of a simple calculator.}
 The program \texttt{calc.py} in Figure \ref{fig:calc.py} parses a small program, prints its abstract syntax
@@ -429,11 +429,11 @@ statements, \verb|if| statements, \verb|while| loops, and blocks.  Its grammar \
 Instead of ignoring literals in every alternative separately, line 29 removes parentheses, braces, and
 semicolons from all heads.  Hence:
 \begin{itemize}
-\item An assignment \verb|x := e;| is represented as \verb|(':=', ('IDENTIFIER', 'x'), ast(e))|.
-\item A statement \verb|print(e);| is represented as \verb|('print', ast(e))|.
+\item An assignment «\verb|x := e;|» is represented as \verb|(':=', ('IDENTIFIER', 'x'), ast(e))|.
+\item A statement «\verb|print(e);|» is represented as \verb|('print', ast(e))|.
 \item The head of an \verb|if| statement would be \verb|('if', 'else')|.  The alias in line 7 replaces it with
       \verb|'if'|, so an \verb|if| statement is represented as \verb|('if', ast(c), ast(s1), ast(s2))|.
-\item A loop \verb|while (c) s| is represented as \verb|('while', ast(c), ast(s))|.
+\item A loop «\verb|while (c) s|» is represented as \verb|('while', ast(c), ast(s))|.
 \item A block has no head left.  Without the alias in line 9, the rule name \texttt{stmnt} would be used as
       head.  With the alias, a block is represented as \verb|('block', ast(s1), ..., ast(sn))|.
 \item The alternative \verb|factor: "(" expr ")"| in line 25 has no head and is therefore a pass-through.
@@ -481,7 +481,7 @@ removes the newline in front of it, so the line numbers refer to the lines of th
 \texttt{errors.py} prints the following:
 \pythonfile{errors.py}{The program \texttt{errors.py} reports the positions of syntax errors.}
 \resultfile{errors}
-In the last example, the semicolon after \verb|print(x)| is missing.  As the input ends prematurely, the
+In the last example, the semicolon after «\verb|print(x)|» is missing.  As the input ends prematurely, the
 error is reported at the position of the last token.  The message of an exception describes the error in
 more detail.  The program \texttt{message.py} in Figure \ref{fig:message.py} prints such a message:
 \pythonfile{message.py}{The program \texttt{message.py} prints the message of a syntax error.}
@@ -528,7 +528,7 @@ two different rules.
 
 \subsection{Shift/reduce conflicts}
 The grammar \texttt{dangling.g} in Figure \ref{fig:dangling.g} describes nested \verb|if| statements.  It
-suffers from the \blue{dangling else problem}:  In a statement like \verb|if (a) if (b) x; else y;| it is not
+suffers from the \blue{dangling else problem}:  In a statement like «\verb|if (a) if (b) x; else y;|» it is not
 clear whether the \verb|else| belongs to the first or to the second \verb|if|.
 \grammarfile{dangling.g}{The grammar \texttt{dangling.g} has a shift/reduce conflict.}
 \Larkita\ resolves shift/reduce conflicts in favour of shifting.  In addition, it issues a warning of the
@@ -541,7 +541,7 @@ the rule used by most programming languages.  The output file \texttt{dangling.o
 \resultfile[\small]{dangling-conflicts}
 The conflict is also shown in the state where it occurs:
 \resultfile[\small]{dangling-state}
-After reading \verb|if (a) if (b) x;|, the parser could either reduce the inner \verb|if| statement with rule
+After reading «\verb|if (a) if (b) x;|», the parser could either reduce the inner \verb|if| statement with rule
 (1) or shift the token \verb|"else"|.  The look-ahead token \verb|"else"| is contained in the look-ahead sets of
 both items.
 
@@ -609,7 +609,7 @@ this is safe:
 The program \texttt{merge.py} in Figure \ref{fig:merge.py} generates three parsers for the grammar
 \texttt{while.g}: a canonical parser, a parser with merged states, and a parser with merged states that uses
 the basic scanner.  It prints the number of states of every parser and parses the string
-\verb|"x := 1; else := 2;"|:
+«\verb|x := 1; else := 2;|»:
 \pythonfile{merge.py}{The program \texttt{merge.py} compares parsers with and without merged states.}
 \resultfile{merge}
 Merging reduces the number of states from 142 to 81.  The output file \texttt{while-merged.out} describes
@@ -619,20 +619,20 @@ look-ahead set is the union of their look-ahead sets:
 A new section of the output file explains why some states with the same core have been kept apart.  It begins
 as follows:
 \resultfile[\small]{while-merged}
-After the statement \verb|{}|, state 15 expects the next statement, which may start with an identifier, while
+After the statement «\verb|{}|», state 15 expects the next statement, which may start with an identifier, while
 state 65 expects the keyword \verb|else|, because the block is the then-branch of an \verb|if| statement.  In
-state 15, the contextual scanner reads the string \texttt{else} as an identifier, because the keyword
-\verb|"else"| cannot occur here.  If the two states were merged, the scanner would read \texttt{else} as a
+state 15, the contextual scanner reads the string «\texttt{else}» as an identifier, because the keyword
+\verb|"else"| cannot occur here.  If the two states were merged, the scanner would read «\texttt{else}» as a
 keyword in both contexts.  Hence, these states are kept apart.  The output file lists five more pairs of
 this kind, one for every other kind of statement.  For example, the parser reaches state 27 after an
-assignment like \verb|x := 1;| that is not followed by \verb|else|.  Therefore, both the canonical parser
-and the parser with merged states read the string \texttt{else} in \verb|x := 1; else := 2;| as an
+assignment like «\verb|x := 1;|» that is not followed by \verb|else|.  Therefore, both the canonical parser
+and the parser with merged states read the string «\texttt{else}» in «\verb|x := 1; else := 2;|» as an
 identifier.  All other states that have been kept apart only differ in their successors.
 
 The basic scanner always tries all terminals, so merging cannot change the tokens.  Therefore, with the basic
 scanner all states with the same core of the grammar \texttt{while.g} are merged and the result is the
-LALR(1) automaton with 56 states.  However, the basic scanner always reads \texttt{else} as a keyword, so this
-parser rejects \verb|else := 2;|.  The basic scanner without merging would reject it, too.  The output file
+LALR(1) automaton with 56 states.  However, the basic scanner always reads «\texttt{else}» as a keyword, so this
+parser rejects «\verb|else := 2;|».  The basic scanner without merging would reject it, too.  The output file
 \texttt{while-basic.out} reports:
 \resultfile[\small]{while-basic}
 The grammar \texttt{not-lalr.g} in Figure \ref{fig:not-lalr.g} is LR(1), but it is not LALR(1).
