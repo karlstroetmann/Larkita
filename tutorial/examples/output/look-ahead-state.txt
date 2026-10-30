@@ -1,0 +1,10 @@
+State 4
+
+    (3)  b → "X" •  { "U" }
+    (4)  c → "X" •  { "U" }
+
+    "U"  reduce using rule (3) b → "X"
+
+    reduce/reduce conflict on "U", NOT RESOLVED (this is an error)
+        - reduce using rule (3) b → "X"
+        - reduce using rule (4) c → "X"

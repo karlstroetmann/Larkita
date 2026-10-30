@@ -1,0 +1,7 @@
+ConflictWarning: 1 shift/reduce conflict(s) were resolved as shift, see dangling.out
+('if',
+ ('NAME', 'a'),
+ (('if', 'else'),
+  ('NAME', 'b'),
+  (';', ('NAME', 'x')),
+  (';', ('NAME', 'y'))))

@@ -1,0 +1,4 @@
+The grammar has 1 unresolved reduce/reduce conflict(s), see look-ahead.out:
+  * state 4 on "U"
+('V', (('X', 'U'),))
+('W', (('X', 'U'),))

@@ -1,0 +1,11 @@
+State 2
+
+    (1)   stmnt → IDENTIFIER • ":=" expr ";"  { $END }
+    (11)  factor → IDENTIFIER •               { "*", "+", "-", "/", ";" }
+
+    ":="  shift and go to state 8
+    "*"   reduce using rule (11) factor → IDENTIFIER
+    "+"   reduce using rule (11) factor → IDENTIFIER
+    "-"   reduce using rule (11) factor → IDENTIFIER
+    "/"   reduce using rule (11) factor → IDENTIFIER
+    ";"   reduce using rule (11) factor → IDENTIFIER

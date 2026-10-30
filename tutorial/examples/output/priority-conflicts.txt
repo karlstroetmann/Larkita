@@ -1,0 +1,3 @@
+State 4, reduce/reduce conflict on ";", resolved by priority: reduce using rule (5)
+    - reduce using rule (4) decl → NAME
+    - reduce using rule (5) expr → NAME

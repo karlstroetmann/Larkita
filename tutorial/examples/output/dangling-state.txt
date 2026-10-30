@@ -1,0 +1,11 @@
+State 17
+
+    (1)  stmnt → "if" "(" NAME ")" stmnt •               { "else", $END }
+    (2)  stmnt → "if" "(" NAME ")" stmnt • "else" stmnt  { "else", $END }
+
+    "else"  shift and go to state 18
+    $END    reduce using rule (1) stmnt → "if" "(" NAME ")" stmnt
+
+    shift/reduce conflict on "else", resolved as shift
+        - shift and go to state 18
+        - reduce using rule (1) stmnt → "if" "(" NAME ")" stmnt

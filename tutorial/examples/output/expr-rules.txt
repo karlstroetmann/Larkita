@@ -1,0 +1,16 @@
+Every rule is followed by the abstract syntax tree that a reduction produces.
+"*name" stands for the list of children collected by the auxiliary rule "name".
+"text" stands for the text of a named token.
+
+  (0)   $root_stmnt → stmnt
+  (1)   stmnt → IDENTIFIER ":=" expr ";"  ⇒ ((":=", ";"), ("IDENTIFIER", text), ast(expr))
+  (2)   stmnt → expr ";"                  ⇒ (";", ast(expr))
+  (3)   expr → expr "+" product           ⇒ ("+", ast(expr), ast(product))
+  (4)   expr → expr "-" product           ⇒ ("-", ast(expr), ast(product))
+  (5)   expr → product                    ⇒ ast(product)
+  (6)   product → product "*" factor      ⇒ ("*", ast(product), ast(factor))
+  (7)   product → product "/" factor      ⇒ ("/", ast(product), ast(factor))
+  (8)   product → factor                  ⇒ ast(factor)
+  (9)   factor → "(" expr ")"             ⇒ ast(expr)
+  (10)  factor → NUMBER                   ⇒ ("NUMBER", text)
+  (11)  factor → IDENTIFIER               ⇒ ("IDENTIFIER", text)

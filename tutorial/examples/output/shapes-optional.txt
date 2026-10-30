@@ -1,0 +1,4 @@
+ret: "return" [NUM] ";"
+
+'return 1;' ⇒ (('return', ';'), ('NUM', '1'))
+'return;'   ⇒ (('return', ';'),)

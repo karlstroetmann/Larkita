@@ -1,0 +1,5 @@
+((':=', ';'),
+ ('IDENTIFIER', 'x'),
+ ('*',
+  ('+', ('IDENTIFIER', 'a'), ('NUMBER', '3')),
+  ('IDENTIFIER', 'b')))

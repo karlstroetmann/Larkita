@@ -46,7 +46,7 @@ class _Formatter:
     def number(self, rule: Rule) -> str:
         return '(%d)' % self.rule_number[id(rule)]
 
-    def conflict(self, c: Conflict) -> str:
+    def conflict(self, c: Conflict, with_state: bool = True) -> str:
         options = []
         if c.shift_state is not None:
             options.append('shift and go to state %d' % c.shift_state)
@@ -58,7 +58,8 @@ class _Formatter:
             status = c.reason
         else:
             status = '%s: reduce using rule %s' % (c.reason, self.number(arg))
-        lines = ['State %d, %s conflict on %s, %s' % (c.state, c.kind, self.symbol(c.terminal), status)]
+        where = 'State %d, ' % c.state if with_state else ''
+        lines = ['%s%s conflict on %s, %s' % (where, c.kind, self.symbol(c.terminal), status)]
         lines += ['    - ' + option for option in options]
         return '\n'.join(lines)
 
@@ -138,7 +139,7 @@ def format_report(analyzer: LR1Analyzer, terminal_names: Dict[str, str], source:
         if conflicts:
             out.append('')
             for c in conflicts:
-                out += ['    ' + line for line in f.conflict(c).split('\n')]
+                out += ['    ' + line for line in f.conflict(c, with_state=False).split('\n')]
 
     return '\n'.join(out) + '\n'
 

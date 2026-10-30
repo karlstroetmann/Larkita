@@ -1,0 +1,7 @@
+_minted*/
+*.aux
+*.log
+*.toc
+larkita-tutorial.out
+examples/*.out
+examples/__pycache__/

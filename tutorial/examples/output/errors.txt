@@ -1,0 +1,11 @@
+UnexpectedToken at line 3, column 14:
+    x := x + ;
+             ^
+
+UnexpectedCharacters at line 2, column 9:
+print(x # 2);
+        ^
+
+UnexpectedToken at line 2, column 8:
+print(x)
+       ^

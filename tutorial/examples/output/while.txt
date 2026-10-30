@@ -1,0 +1,14 @@
+('program',
+ (':=', ('IDENTIFIER', 'a'), ('NUMBER', '1071')),
+ (':=', ('IDENTIFIER', 'b'), ('NUMBER', '462')),
+ ('while',
+  ('!=', ('IDENTIFIER', 'b'), ('NUMBER', '0')),
+  ('block',
+   (':=',
+    ('IDENTIFIER', 'r'),
+    ('%', ('IDENTIFIER', 'a'), ('IDENTIFIER', 'b'))),
+   (':=', ('IDENTIFIER', 'a'), ('IDENTIFIER', 'b')),
+   (':=', ('IDENTIFIER', 'b'), ('IDENTIFIER', 'r')))),
+ ('print', ('IDENTIFIER', 'a')))
+21
+111

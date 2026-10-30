@@ -1,0 +1,3 @@
+State 17, shift/reduce conflict on "else", resolved as shift
+    - shift and go to state 18
+    - reduce using rule (1) stmnt → "if" "(" NAME ")" stmnt

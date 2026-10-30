@@ -1,0 +1,6 @@
+program: stmnt*
+stmnt: NAME ";"
+
+'a; b;' ⇒ ('program', (';', ('NAME', 'a')), (';', ('NAME', 'b')))
+'a;'    ⇒ ('program', (';', ('NAME', 'a')))
+''      ⇒ ('program',)

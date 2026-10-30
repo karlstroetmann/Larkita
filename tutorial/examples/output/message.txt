@@ -1,0 +1,6 @@
+Unexpected token Token('SEMICOLON', ';') at line 3, column 14.
+Expected one of: 
+	* IDENTIFIER
+	* "("
+	* NUMBER
+Previous tokens: [Token('PLUS', '+')]
