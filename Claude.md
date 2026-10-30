@@ -254,8 +254,9 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 ### How to check the work
 
 * Larkita: `python3 -m tests` (51 tests) and `mypy larkita`.
-* Tutorial: `cd tutorial && make`.  The build must have no errors; the only accepted warning is an
-  overfull box of 0.5pt.
+* Tutorial: `cd tutorial && make`.  The build must have no errors and no overfull boxes.  The only
+  accepted warnings are the two hyperref warnings "Token not allowed in a PDF string", which come from
+  `\Lark` in the title of the subsection "Differences from Lark".
 * Lecture notes: run `pdflatex -shell-escape -interaction=nonstopmode formal-languages.tex` three
   times.  A clean build has 0 errors (`grep -c '^!' formal-languages.log`) and no "undefined" or
   "multiply defined" references.  Too wide `minted` listings produce no warnings, so check the PDF:

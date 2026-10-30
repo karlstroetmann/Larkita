@@ -98,7 +98,7 @@
       \hspace*{0.3cm}
       \verb|(':=', ('IDENTIFIER', 'x'),|
       \\
-      \hspace*{0.8cm}
+      \hspace*{2.0cm}
       \verb|('+', ('IDENTIFIER', 'a'), ('NUMBER', '3')))|.
       \\[0.2cm]
       Tuples like these are easy to print and easy to process with the \verb|match| statement of
@@ -311,7 +311,7 @@ just the pair \verb|('NUM', '42')|.
 \subsection{The rule name as head}
 If an alternative has no head and is not a pass-through, the name of the rule is used as head:
 \resultfile{shapes-rule-name}
-Pass-through is decided by looking at the grammar, not at the input:  The alternative \verb|program: stmnt*|
+Pass-through is decided by the grammar, not by the input:  The alternative \verb|program: stmnt*|
 always builds a tuple, even if the input contains only one statement.  For the empty string, it builds the
 tuple \verb|('program',)|, which has no children.
 
