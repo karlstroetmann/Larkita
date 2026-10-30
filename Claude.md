@@ -261,8 +261,11 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
    released on 2026-10-30.  It needs Python 3.12 or newer.  See "Releasing a new version on PyPI".
 6. Version 0.2.0 changes the abstract syntax trees of inner alternatives (clarification 5).  Before,
    all their literals belonged to the head, so `1 + 2` and `1 - 2` yielded the same tree for
-   `expr: product (("+" | "-") product)*`.  Of the course notebooks, only
-   `Python/Chapter-07/01-Calculator-EBNF.ipynb` uses inner alternatives with literals.
+   `expr: product (("+" | "-") product)*`.  Released on 2026-10-30.  In the course,
+   `Python/Chapter-07/01-Calculator-EBNF.ipynb` uses inner alternatives inside repetitions, and the
+   interpreters (chapter 8) and compilers (chapter 13) use them for the comparison, additive, and
+   multiplicative operators, e.g. `expr: expr ("+" | "-") product`; the lecture notes show these
+   grammars.  The notebooks of chapters 7 and 11 keep one alternative per operator on purpose.
 
 ### Constraints
 
