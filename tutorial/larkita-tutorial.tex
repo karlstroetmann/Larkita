@@ -10,6 +10,7 @@
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{upquote}              % straight quotes in \verb and in listings
+\usepackage{float}                % figures with the placement H stay where they are
 \usepackage{minted}
 \usepackage{fancyhdr}
 \usepackage{lastpage}
@@ -47,16 +48,19 @@
 
 % Every listing is read from a file in the directory examples, hence the listings show the
 % actual code.  The outputs in examples/output are produced by examples/run_examples.py.
-% Listings are put into the environment unbreakable, so they are not split across pages.
-% Only the long listing of while.py is included with \longpythonfile, which allows page breaks.
+% Grammars and programs are set as figures with the label fig:<file name>.  They do not float, so every
+% program is followed by its output.  The program while.py is too long for one page, so it is split into
+% two figures.  Outputs are put into the environment unbreakable,
+% so they are not split across pages.
 \setminted{frame = lines, framesep = 0.3cm, bgcolor = sepia, tabsize = 4}
 \newenvironment{unbreakable}{\par\noindent\begin{minipage}{\linewidth}}{\end{minipage}\par}
-\newcommand{\grammarfile}[1]{\begin{unbreakable}%
-  \inputminted[numbers = left, numbersep = 0.3cm]{text}{examples/#1}\end{unbreakable}}
-\newcommand{\pythonfile}[1]{\begin{unbreakable}%
-  \inputminted[numbers = left, numbersep = 0.3cm]{python3}{examples/#1}\end{unbreakable}}
-\newcommand{\longpythonfile}[1]{%
-  \inputminted[numbers = left, numbersep = 0.3cm]{python3}{examples/#1}}
+% \codefigure[minted options]{language}{file}{label}{caption}
+\newcommand{\codefigure}[5][]{\begin{figure}[H]%
+  \inputminted[numbers = left, numbersep = 0.3cm, #1]{#2}{examples/#3}%
+  \vspace*{-0.3cm}%
+  \caption{#5}\label{#4}\end{figure}}
+\newcommand{\grammarfile}[2]{\codefigure{text}{#1}{fig:#1}{#2}}
+\newcommand{\pythonfile}[2]{\codefigure{python3}{#1}{fig:#1}{#2}}
 \newcommand{\resultfile}[2][\normalsize]{\begin{unbreakable}%
   \inputminted[fontsize = #1, breaklines]{text}{examples/output/#2.txt}\end{unbreakable}}
 
@@ -93,7 +97,7 @@
       split into tokens.  If the grammar is LALR(1) and the basic scanner is used, the result is the LALR(1)
       parser, which has far fewer states than an LR(1) parser (see Section \ref{sec:merging}).
 \item The parser returns the abstract syntax tree as a \blue{nested tuple}.  For example, with the grammar
-      shown in the next section, the string \verb|"x := a + 3;"| is turned into the tuple
+      shown in Figure \ref{fig:expr.g}, the string \verb|"x := a + 3;"| is turned into the tuple
       \\[0.2cm]
       \hspace*{0.3cm}
       \verb|(':=', ('IDENTIFIER', 'x'),|
@@ -128,8 +132,9 @@ and stores their outputs in the directory \texttt{examples/output}, from where t
 document.
 
 \section{A First Parser}
-The file \texttt{expr.g} shown below contains a grammar for assignments and arithmetic expressions.
-\grammarfile{expr.g}
+The file \texttt{expr.g} shown in Figure \ref{fig:expr.g} contains a grammar for assignments and arithmetic
+expressions.
+\grammarfile{expr.g}{The grammar \texttt{expr.g} for assignments and arithmetic expressions.}
 \begin{itemize}
 \item Line 1 is a comment.  Comments start with \verb|//| and extend to the end of the line.
 \item A \blue{rule} consists of the name of a syntactical variable, a colon, and a list of
@@ -155,8 +160,9 @@ The file \texttt{expr.g} shown below contains a grammar for assignments and arit
       alternative, and without it the abstract syntax tree of the statement would just be the tree of the
       expression.  We will discuss \verb|%ignore| in Section \ref{sec:ast}.
 \end{itemize}
-The program \texttt{first.py} generates a parser from this grammar and parses a string:
-\pythonfile{first.py}
+The program \texttt{first.py} in Figure \ref{fig:first.py} generates a parser from this grammar and parses a
+string.
+\pythonfile{first.py}{The program \texttt{first.py} parses a string with the grammar \texttt{expr.g}.}
 \begin{itemize}
 \item The class method \verb|Larkita.open| reads the grammar from a file and returns a parser.  If the grammar
       is given as a string, we use the constructor instead:  \verb|Larkita(grammar)|.
@@ -257,8 +263,8 @@ is renamed.
 \label{sec:scanner}
 The scanner splits the input into tokens.  The command \verb|%ignore NAME| tells the scanner to skip the
 tokens of the terminal \texttt{NAME}, e.g.~white space or comments.  The method \texttt{lex} runs only the
-scanner, which is useful when a grammar does not work as expected:
-\pythonfile{lex.py}
+scanner, which is useful when a grammar does not work as expected.  Figure \ref{fig:lex.py} shows an example.
+\pythonfile{lex.py}{The program \texttt{lex.py} splits a string into tokens.}
 The method \texttt{lex} returns an iterator over the tokens.  Every token has a type, a value, a line, and a
 column.  The program prints them in the form \texttt{line:column}:
 \resultfile{lex}
@@ -391,11 +397,13 @@ ret: "return" [expr] ";"
 \section{Processing the Abstract Syntax Tree}
 Abstract syntax trees that are represented as nested tuples are best processed with the \verb|match|
 statement of \textsl{Python}.  As an example, we implement a simple calculator.  Its grammar
-\texttt{calc.g} extends the grammar \texttt{expr.g}:  A program is a sequence of statements, the statement
-\verb|print expr;| prints the value of an expression, and there is a unary minus.
-\grammarfile{calc.g}
-The program \texttt{calc.py} parses a small program, prints its abstract syntax tree, and executes it.
-\pythonfile{calc.py}
+\texttt{calc.g}, which is shown in Figure \ref{fig:calc.g}, extends the grammar \texttt{expr.g}:  A program
+is a sequence of statements, the statement \verb|print expr;| prints the value of an expression, and there is
+a unary minus.
+\grammarfile{calc.g}{The grammar \texttt{calc.g} of a simple calculator.}
+The program \texttt{calc.py} in Figure \ref{fig:calc.py} parses a small program, prints its abstract syntax
+tree, and executes it.
+\pythonfile{calc.py}{The program \texttt{calc.py} implements the calculator.}
 \begin{itemize}
 \item The function \texttt{evaluate} computes the value of an expression.  Every \verb|case| corresponds to an
       alternative of the grammar:  The pattern \verb|('+', lhs, rhs)| matches the tuples produced by the
@@ -413,9 +421,9 @@ The program prints the following:
 \section{A Small Interpreter}
 \label{sec:interpreter}
 Our next example is an interpreter for a small imperative language with assignments, \verb|print|
-statements, \verb|if| statements, \verb|while| loops, and blocks.  Its grammar \texttt{while.g} shows how
-\verb|%ignore:| and aliases keep the abstract syntax tree small.
-\grammarfile{while.g}
+statements, \verb|if| statements, \verb|while| loops, and blocks.  Its grammar \texttt{while.g} in Figure
+\ref{fig:while.g} shows how \verb|%ignore:| and aliases keep the abstract syntax tree small.
+\grammarfile{while.g}{The grammar \texttt{while.g} of a small imperative language.}
 Instead of ignoring literals in every alternative separately, line 29 removes parentheses, braces, and
 semicolons from all heads.  Hence:
 \begin{itemize}
@@ -428,8 +436,12 @@ semicolons from all heads.  Hence:
       head.  With the alias, a block is represented as \verb|('block', ast(s1), ..., ast(sn))|.
 \item The alternative \verb|factor: "(" expr ")"| in line 25 has no head and is therefore a pass-through.
 \end{itemize}
-Line 33 and 35 tell the scanner to skip comments.  The interpreter is shown below.
-\longpythonfile{while.py}
+Line 33 and 35 tell the scanner to skip comments.  Figure \ref{fig:while.py:1} shows the interpreter and
+Figure \ref{fig:while.py:2} shows two programs that are executed by it.
+\codefigure[lastline = 40]{python3}{while.py}{fig:while.py:1}{The interpreter \texttt{while.py}, part 1:
+  the evaluation of expressions and the execution of statements.}
+\codefigure[firstline = 42, firstnumber = 42]{python3}{while.py}{fig:while.py:2}{The interpreter
+  \texttt{while.py}, part 2: two programs are parsed and executed.}
 \begin{itemize}
 \item As all binary operators produce tuples of the form \verb|(op, lhs, rhs)|, the function
       \texttt{evaluate} needs only one case for them.  The dictionary \texttt{OPERATORS} maps every operator to
@@ -453,13 +465,14 @@ If the input contains a syntax error, the method \texttt{parse} raises an except
 Both exceptions are subclasses of \texttt{UnexpectedInput}.  They provide the attributes \texttt{line} and
 \texttt{column}, which give the position of the error, and the method \verb|get_context(text)|, which returns
 the line containing the error together with a marker that points to the error.  The program
-\texttt{errors.py} checks three erroneous programs for the grammar \texttt{while.g}:
-\pythonfile{errors.py}
+\texttt{errors.py} in Figure \ref{fig:errors.py} checks three erroneous programs for the grammar
+\texttt{while.g}.  It prints the following:
+\pythonfile{errors.py}{The program \texttt{errors.py} reports the positions of syntax errors.}
 \resultfile{errors}
 In the last example, the semicolon after \verb|print(x)| is missing.  As the input ends prematurely, the
 error is reported at the position of the last token.  The message of an exception describes the error in
-more detail:
-\pythonfile{message.py}
+more detail.  The program \texttt{message.py} in Figure \ref{fig:message.py} prints such a message:
+\pythonfile{message.py}{The program \texttt{message.py} prints the message of a syntax error.}
 \resultfile[\small]{message}
 
 \section{The Output File}
@@ -502,13 +515,14 @@ shift the next token or reduce with a rule.  A \blue{reduce/reduce conflict} occ
 two different rules.
 
 \subsection{Shift/reduce conflicts}
-The grammar \texttt{dangling.g} describes nested \verb|if| statements.  It suffers from the
-\blue{dangling else problem}:  In a statement like \verb|if (a) if (b) x; else y;| it is not clear whether
-the \verb|else| belongs to the first or to the second \verb|if|.
-\grammarfile{dangling.g}
+The grammar \texttt{dangling.g} in Figure \ref{fig:dangling.g} describes nested \verb|if| statements.  It
+suffers from the \blue{dangling else problem}:  In a statement like \verb|if (a) if (b) x; else y;| it is not
+clear whether the \verb|else| belongs to the first or to the second \verb|if|.
+\grammarfile{dangling.g}{The grammar \texttt{dangling.g} has a shift/reduce conflict.}
 \Larkita\ resolves shift/reduce conflicts in favour of shifting.  In addition, it issues a warning of the
-class \texttt{ConflictWarning}.  The program \texttt{dangling.py} catches this warning and prints it:
-\pythonfile{dangling.py}
+class \texttt{ConflictWarning}.  The program \texttt{dangling.py} in Figure \ref{fig:dangling.py} catches
+this warning and prints it:
+\pythonfile{dangling.py}{The program \texttt{dangling.py} catches the warning about the conflict.}
 \resultfile[\small]{dangling}
 Shifting means that an \verb|else| belongs to the innermost \verb|if| that has no \verb|else| yet, which is
 the rule used by most programming languages.  The output file \texttt{dangling.out} lists the conflict:
@@ -529,30 +543,35 @@ turns these warnings into exceptions, so that every shift/reduce conflict is rep
 \verb|warnings.simplefilter('ignore', ConflictWarning)| suppresses them.
 
 \subsection{Reduce/reduce conflicts}
-\Larkita\ treats reduce/reduce conflicts as errors: It raises a \texttt{GrammarError}.  The following grammar
-is unambiguous, but it is not LR(1):
-\grammarfile{look-ahead.g}
+\Larkita\ treats reduce/reduce conflicts as errors: It raises a \texttt{GrammarError}.  The grammar
+\texttt{look-ahead.g} in Figure \ref{fig:look-ahead.g} is unambiguous, but it is not LR(1).
+\grammarfile{look-ahead.g}{The grammar \texttt{look-ahead.g} is unambiguous, but it is not LR(1).}
 After reading \verb|"X"|, the parser has to decide whether \verb|"X"| is a \texttt{b} or a \texttt{c}.  This
 depends on whether \verb|"U"| is followed by \verb|"V"| or by \verb|"W"|, but the parser can only look at one
-token, namely \verb|"U"|.  The program \texttt{look-ahead.py} tries to generate a parser for this grammar and
-prints the message of the exception.  Afterwards, it generates a parser for the grammar
-\texttt{look-ahead-solved.g} discussed below and parses two strings:
-\pythonfile{look-ahead.py}
+token, namely \verb|"U"|.  The program \texttt{look-ahead.py} in Figure \ref{fig:look-ahead.py} tries to
+generate a parser for this grammar and prints the message of the exception.  Afterwards, it generates a
+parser for the grammar \texttt{look-ahead-solved.g} discussed below and parses two strings:
+\pythonfile{look-ahead.py}{The program \texttt{look-ahead.py} reports the reduce/reduce conflict of
+  \texttt{look-ahead.g}.}
 \resultfile[\small]{look-ahead}
 The output file is written even if the grammar has conflicts, so it can be used to find the cause of the
 problem:
 \resultfile[\small]{look-ahead-state}
 This conflict is solved by rewriting the grammar, so that the decision can be postponed until the token
-\verb|"U"| has been read:
-\grammarfile{look-ahead-solved.g}
+\verb|"U"| has been read.  The result is the grammar \texttt{look-ahead-solved.g} shown in Figure
+\ref{fig:look-ahead-solved.g}.
+\grammarfile{look-ahead-solved.g}{The grammar \texttt{look-ahead-solved.g} avoids the conflict of
+  \texttt{look-ahead.g}.}
 
 \subsection{Priorities}
 \label{sec:priorities}
-A reduce/reduce conflict can also be resolved by giving one of the rules a higher priority.  In the following
-grammar, a statement consisting of a single name could be both a declaration of a type without a variable and
-an expression.  The priority 2 in line 9 resolves this conflict in favour of the expression.
-\grammarfile{priority.g}
-\pythonfile{priority.py}
+A reduce/reduce conflict can also be resolved by giving one of the rules a higher priority.  In the grammar
+\texttt{priority.g} in Figure \ref{fig:priority.g}, a statement consisting of a single name could be both a
+declaration of a type without a variable and an expression.  The priority 2 in line 9 resolves this conflict
+in favour of the expression.  The program \texttt{priority.py} in Figure \ref{fig:priority.py} parses a
+declaration and an expression:
+\grammarfile{priority.g}{The grammar \texttt{priority.g} resolves a reduce/reduce conflict with a priority.}
+\pythonfile{priority.py}{The program \texttt{priority.py} parses a declaration and an expression.}
 \resultfile{priority}
 The output file lists the conflict together with its resolution:
 \resultfile[\small]{priority-conflicts}
@@ -575,10 +594,11 @@ this is safe:
       look-ahead tokens of one state are added to another state, the scanner might read some text as a
       different token.
 \end{enumerate}
-The program \texttt{merge.py} generates three parsers for the grammar \texttt{while.g}: a canonical parser, a
-parser with merged states, and a parser with merged states that uses the basic scanner.  It prints the number
-of states of every parser and parses the string \verb|"x := 1; else := 2;"|.
-\pythonfile{merge.py}
+The program \texttt{merge.py} in Figure \ref{fig:merge.py} generates three parsers for the grammar
+\texttt{while.g}: a canonical parser, a parser with merged states, and a parser with merged states that uses
+the basic scanner.  It prints the number of states of every parser and parses the string
+\verb|"x := 1; else := 2;"|:
+\pythonfile{merge.py}{The program \texttt{merge.py} compares parsers with and without merged states.}
 \resultfile{merge}
 Merging reduces the number of states from 142 to 81.  The output file \texttt{while-merged.out} describes
 the merged states.  For example, state 3 has been obtained by merging the LR(1) states 3 and 16.  Its
@@ -603,13 +623,15 @@ LALR(1) automaton with 56 states.  However, the basic scanner always reads \text
 parser rejects \verb|else := 2;|.  The basic scanner without merging would reject it, too.  The output file
 \texttt{while-basic.out} reports:
 \resultfile[\small]{while-basic}
-The grammar \texttt{not-lalr.g} below is LR(1), but it is not LALR(1).
-\grammarfile{not-lalr.g}
+The grammar \texttt{not-lalr.g} in Figure \ref{fig:not-lalr.g} is LR(1), but it is not LALR(1).
+\grammarfile{not-lalr.g}{The grammar \texttt{not-lalr.g} is LR(1), but it is not LALR(1).}
 After reading \verb|"v" "x"| and \verb|"w" "x"|, the parser reaches two states with the same core.  In the first
 state, \verb|"x"| has to be reduced to \texttt{a} if the next token is \verb|"y"|, and to \texttt{b} if it is
 \verb|"z"|.  In the second state, it is the other way round.  Merging these states would therefore cause two
-reduce/reduce conflicts, so they are kept apart:
-\pythonfile{not-lalr.py}
+reduce/reduce conflicts, so they are kept apart.  The program \texttt{not-lalr.py} in Figure
+\ref{fig:not-lalr.py} generates a parser with merged states and parses four strings:
+\pythonfile{not-lalr.py}{The program \texttt{not-lalr.py} generates a parser for \texttt{not-lalr.g} with
+  merged states.}
 \resultfile{not-lalr}
 \resultfile[\small]{not-lalr-merged}
 As these are the only states with the same core, merging does not reduce the number of states for this

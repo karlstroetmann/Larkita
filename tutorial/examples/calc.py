@@ -3,7 +3,6 @@ from larkita import Larkita
 
 parser = Larkita.open('calc.g')
 
-
 def evaluate(expr, values):
     match expr:
         case ('+', lhs, rhs):
@@ -21,7 +20,6 @@ def evaluate(expr, values):
         case ('IDENTIFIER', name):
             return values[name]
 
-
 def execute(program):
     values = {}
     for stmnt in program[1:]:
@@ -30,7 +28,6 @@ def execute(program):
                 values[name] = evaluate(expr, values)
             case ('print', expr):
                 print(evaluate(expr, values))
-
 
 text = '''
 x := 2 * (3 + 4);

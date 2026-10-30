@@ -11,7 +11,6 @@ OPERATORS = {
     '<':  operator.lt, '<=': operator.le,
 }
 
-
 def evaluate(expr, values):
     match expr:
         case ('NUMBER', digits):
@@ -21,7 +20,6 @@ def evaluate(expr, values):
         case (op, lhs, rhs):
             x, y = evaluate(lhs, values), evaluate(rhs, values)
             return OPERATORS[op](x, y)
-
 
 def execute(stmnt, values):
     match stmnt:
@@ -40,7 +38,6 @@ def execute(stmnt, values):
         case ('while', cond, body):
             while evaluate(cond, values):
                 execute(body, values)
-
 
 euclid = '''
 // Euclid's algorithm
