@@ -73,7 +73,9 @@
   canonical LR(1) parser that returns the abstract syntax tree of its input as a \blue{nested tuple}.  The
   shape of these tuples follows from the grammar, so there is no tree-building code to write.  Furthermore,
   \Larkita\ describes the LR(1) automaton it has generated in an \blue{output file}, which makes conflicts easy
-  to understand.  This tutorial explains how to write grammars for \Larkita, how the abstract syntax trees are
+  to understand.  If the grammar is LALR(1), \Larkita\ can also produce the much smaller LALR(1) parser: On
+  request, it merges states that only differ in their look-ahead tokens, as long as this is safe.  This
+  tutorial explains how to write grammars for \Larkita, how the abstract syntax trees are
   built, how to process them with structural pattern matching, and how to deal with syntax errors and
   conflicts.
 \end{abstract}
@@ -84,9 +86,12 @@
 \Larkita\ is a light-weight version of the parser generator
 \href{https://github.com/lark-parser/lark}{\Lark}.  It differs from \Lark\ in three ways:
 \begin{enumerate}
-\item It always generates a \blue{canonical LR(1) parser}.  These parsers can handle more grammars than
+\item By default, it generates a \blue{canonical LR(1) parser}.  These parsers can handle more grammars than
       LALR(1) parsers, and when a grammar has a conflict, the LR(1) states show directly where the conflict
-      comes from.
+      comes from.  With the option \verb|merge_states=True|, \Larkita\ merges states that only differ in
+      their look-ahead tokens, as long as this causes no new conflicts and does not change how the input is
+      split into tokens.  If the grammar is LALR(1) and the basic scanner is used, the result is the LALR(1)
+      parser, which has far fewer states (see Section \ref{sec:merging}).
 \item The parser returns the abstract syntax tree as a \blue{nested tuple}.  For example, with the grammar
       shown in the next section, the string \verb|"x := a + 3;"| is turned into the tuple
       \\[0.2cm]
@@ -680,8 +685,8 @@ A parser provides the following methods and attributes:
 \subsection{Differences from \Lark}
 Readers who know \Lark\ should note the following differences:
 \begin{itemize}
-\item \Larkita\ only generates canonical LR(1) parsers.  The Earley, CYK, and LALR parsers of \Lark\ are not
-      available.
+\item \Larkita\ always builds the canonical LR(1) automaton; an LALR(1) parser is obtained by merging states
+      (see below).  The Earley and CYK parsers of \Lark\ are not available.
 \item The parser returns nested tuples.  There are no trees, transformers, or visitors.  Therefore, the rule
       modifiers \verb|?rule| and \verb|!rule| are not supported, and rules and terminals whose names start
       with an underscore are neither inlined nor filtered.
