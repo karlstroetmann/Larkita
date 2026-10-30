@@ -61,6 +61,8 @@
   \caption{#5}\label{#4}\end{figure}}
 \newcommand{\grammarfile}[2]{\codefigure{text}{#1}{fig:#1}{#2}}
 \newcommand{\pythonfile}[2]{\codefigure{python3}{#1}{fig:#1}{#2}}
+% \outputfigure{name}{caption}: the output examples/output/<name>.txt with the label fig:<name>.txt
+\newcommand{\outputfigure}[2]{\codefigure[numbers = none, breaklines]{text}{output/#1.txt}{fig:#1.txt}{#2}}
 \newcommand{\resultfile}[2][\normalsize]{\begin{unbreakable}%
   \inputminted[fontsize = #1, breaklines]{text}{examples/output/#2.txt}\end{unbreakable}}
 
@@ -436,12 +438,10 @@ semicolons from all heads.  Hence:
       head.  With the alias, a block is represented as \verb|('block', ast(s1), ..., ast(sn))|.
 \item The alternative \verb|factor: "(" expr ")"| in line 25 has no head and is therefore a pass-through.
 \end{itemize}
-Line 33 and 35 tell the scanner to skip comments.  Figure \ref{fig:while.py:1} shows the interpreter and
-Figure \ref{fig:while.py:2} shows two programs that are executed by it.
-\codefigure[lastline = 40]{python3}{while.py}{fig:while.py:1}{The interpreter \texttt{while.py}, part 1:
-  the evaluation of expressions and the execution of statements.}
-\codefigure[firstline = 42, firstnumber = 42]{python3}{while.py}{fig:while.py:2}{The interpreter
-  \texttt{while.py}, part 2: two programs are parsed and executed.}
+Line 33 and 35 tell the scanner to skip comments.  Figure \ref{fig:while.py:interpreter} shows the
+interpreter.
+\codefigure[lastline = 40]{python3}{while.py}{fig:while.py:interpreter}{The interpreter \texttt{while.py},
+  part 1: the evaluation of expressions and the execution of statements.}
 \begin{itemize}
 \item As all binary operators produce tuples of the form \verb|(op, lhs, rhs)|, the function
       \texttt{evaluate} needs only one case for them.  The dictionary \texttt{OPERATORS} maps every operator to
@@ -449,8 +449,18 @@ Figure \ref{fig:while.py:2} shows two programs that are executed by it.
 \item In the function \texttt{execute}, the pattern \verb+('program' | 'block', *body)+ matches both programs
       and blocks.  The star collects the statements of the program or the block in the list \texttt{body}.
 \end{itemize}
-The program prints the abstract syntax tree of the first program, followed by the outputs of both programs:
-\resultfile{while}
+Figure \ref{fig:while.py:euclid} shows the first program that is executed by the interpreter.  It computes
+the greatest common divisor of 1071 and 462 with Euclid's algorithm.  Figure \ref{fig:while-euclid.txt}
+shows what is printed: the abstract syntax tree of the program, followed by its output.
+\codefigure[firstline = 42, lastline = 55, firstnumber = 42]{python3}{while.py}{fig:while.py:euclid}{The
+  interpreter \texttt{while.py}, part 2: Euclid's algorithm is parsed and executed.}
+\outputfigure{while-euclid}{The abstract syntax tree and the output of Euclid's algorithm.}
+The second program, which is shown in Figure \ref{fig:while.py:collatz}, computes the number of steps that
+the Collatz sequence starting at 27 needs to reach 1.  Its abstract syntax tree and its output are shown in
+Figure \ref{fig:while-collatz.txt}.
+\codefigure[firstline = 57, firstnumber = 57]{python3}{while.py}{fig:while.py:collatz}{The interpreter
+  \texttt{while.py}, part 3: the Collatz sequence is computed.}
+\outputfigure{while-collatz}{The abstract syntax tree and the output of the Collatz program.}
 
 \section{Syntax Errors}
 If the input contains a syntax error, the method \texttt{parse} raises an exception.  All exceptions of
@@ -466,7 +476,9 @@ Both exceptions are subclasses of \texttt{UnexpectedInput}.  They provide the at
 \texttt{column}, which give the position of the error, and the method \verb|get_context(text)|, which returns
 the line containing the error together with a marker that points to the error.  The program
 \texttt{errors.py} in Figure \ref{fig:errors.py} checks three erroneous programs for the grammar
-\texttt{while.g}.  It prints the following:
+\texttt{while.g}.  Every program starts on the line after the opening quotes.  The function \texttt{check}
+removes the newline in front of it, so the line numbers refer to the lines of the program.  The program
+\texttt{errors.py} prints the following:
 \pythonfile{errors.py}{The program \texttt{errors.py} reports the positions of syntax errors.}
 \resultfile{errors}
 In the last example, the semicolon after \verb|print(x)| is missing.  As the input ends prematurely, the

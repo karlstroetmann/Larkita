@@ -69,6 +69,11 @@ def main():
             for part in output.split('#### ')[1:]:
                 title, _, body = part.partition('\n')
                 write('shapes-' + title, body)
+        elif name == 'while':
+            # The output of every program starts with its abstract syntax tree.
+            euclid, collatz = re.split(r"^(?=\('program',)", output, flags=re.M)[1:]
+            write('while-euclid', euclid)
+            write('while-collatz', collatz)
         else:
             write(name, output)
     expr = read('expr.out')

@@ -11,4 +11,3 @@
    (':=', ('IDENTIFIER', 'b'), ('IDENTIFIER', 'r')))),
  ('print', ('IDENTIFIER', 'a')))
 21
-111

@@ -64,4 +64,6 @@ while (n != 1) {
 }
 print(steps);
 '''
-execute(parser.parse(collatz), {})
+ast = parser.parse(collatz)
+pprint(ast, width=60)
+execute(ast, {})
