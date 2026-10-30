@@ -94,7 +94,7 @@
 \begin{enumerate}
 \item By default, it generates a \blue{canonical LR(1) parser}.  These parsers can handle more grammars than
       LALR(1) parsers, and when a grammar has a conflict, the LR(1) states show directly where the conflict
-      comes from.  With the option \verb|merge_states=True|, \Larkita\ merges states that only differ in
+      comes from.  With the option «\verb|merge_states=True|», \Larkita\ merges states that only differ in
       their look-ahead tokens, as long as this causes no new conflicts and does not change how the input is
       split into tokens.  If the grammar is LALR(1) and the basic scanner is used, the result is the LALR(1)
       parser, which has far fewer states than an LR(1) parser (see Section \ref{sec:merging}).
@@ -107,7 +107,7 @@
       \hspace*{2.0cm}
       \verb|('+', ('IDENTIFIER', 'a'), ('NUMBER', '3')))|.
       \\[0.2cm]
-      Tuples like these are easy to print and easy to process with the \verb|match| statement of
+      Tuples like these are easy to print and easy to process with the «\verb|match|» statement of
       \textsl{Python}.
 \item Every time a parser is generated, \Larkita\ writes an \blue{output file} that lists all LR(1) states.
       Every item of a state is annotated with its look-ahead tokens.
@@ -123,7 +123,7 @@ abstract syntax trees.
 pip install git+https://github.com/karlstroetmann/Larkita.git
 \end{minted}
 \end{unbreakable}
-\Larkita\ runs with \textsl{Python} 3.8 or newer.  The examples in this tutorial use the \verb|match|
+\Larkita\ runs with \textsl{Python} 3.8 or newer.  The examples in this tutorial use the «\verb|match|»
 statement and therefore need \textsl{Python} 3.10 or newer.
 
 \subsection{The examples}
@@ -138,9 +138,9 @@ The file \texttt{expr.g} shown in Figure \ref{fig:expr.g} contains a grammar for
 expressions.
 \grammarfile{expr.g}{The grammar \texttt{expr.g} for assignments and arithmetic expressions.}
 \begin{itemize}
-\item Line 1 is a comment.  Comments start with \verb|//| and extend to the end of the line.
+\item Line 1 is a comment.  Comments start with «\verb|//|» and extend to the end of the line.
 \item A \blue{rule} consists of the name of a syntactical variable, a colon, and a list of
-      \blue{alternatives} that are separated by the character ``\verb+|+''.  The names of syntactical variables
+      \blue{alternatives} that are separated by the character «\verb+|+».  The names of syntactical variables
       are written in lower case.  The first rule defines the \blue{start symbol} of the grammar, which is
       \texttt{stmnt} in this case.
 \item Strings enclosed in double quotes like \verb|":="| or \verb|"+"| are \blue{literals}: They stand for
@@ -156,26 +156,26 @@ expressions.
       programming language \texttt{C}.  Similarly, \texttt{NUMBER} matches integers and floating point
       numbers, and \texttt{WS} matches white space.
 \item Line 21 tells the scanner to skip white space.
-\item The annotations \verb|%ignore ";"| in line 3 and \verb|%ignore "(", ")"| in line 14 are specific to
+\item The annotations «\verb|%ignore ";"|» in line 3 and «\verb|%ignore "(", ")"|» in line 14 are specific to
       \Larkita.  They tell \Larkita\ that the semicolon of an assignment and the parentheses should not
       appear in the abstract syntax tree.  The semicolon in line 4 is kept:  It is the only literal of this
       alternative, and without it the abstract syntax tree of the statement would just be the tree of the
-      expression.  We will discuss \verb|%ignore| in Section \ref{sec:ast}.
+      expression.  We will discuss «\verb|%ignore|» in Section \ref{sec:ast}.
 \end{itemize}
 The program \texttt{first.py} in Figure \ref{fig:first.py} generates a parser from this grammar and parses a
 string.
 \pythonfile{first.py}{The program \texttt{first.py} parses a string with the grammar \texttt{expr.g}.}
 \begin{itemize}
-\item The class method \verb|Larkita.open| reads the grammar from a file and returns a parser.  If the grammar
-      is given as a string, we use the constructor instead:  \verb|Larkita(grammar)|.
+\item The class method «\verb|Larkita.open|» reads the grammar from a file and returns a parser.  If the grammar
+      is given as a string, we use the constructor instead:  «\verb|Larkita(grammar)|».
 \item The method \texttt{parse} takes the string to parse and returns its abstract syntax tree.  We print this
       tree with the function \texttt{pprint}, which inserts line breaks and indentation:
 \end{itemize}
 \resultfile{first}
 Every node of this tree is a tuple.  The first component of a tuple is called its \blue{head}: It contains the
 literals of the rule that has been used, except for the ignored ones.  The remaining components are the \blue{children}.  For example, the
-tuple \verb|('+', ('IDENTIFIER', 'a'), ('NUMBER', '3'))| represents the expression «\verb|a + 3|».  Its head is
-the operator \verb|'+'| and its children represent the operands.  A token like «\texttt{a}» is represented as a
+tuple «\verb|('+', ('IDENTIFIER', 'a'), ('NUMBER', '3'))|» represents the expression «\verb|a + 3|».  Its head is
+the operator «\verb|'+'|» and its children represent the operands.  A token like «\texttt{a}» is represented as a
 pair consisting of the name of the terminal and the text that has been read.  Section \ref{sec:ast} explains
 the construction of the abstract syntax tree in detail.
 
@@ -195,14 +195,14 @@ The right hand side of a rule can use the following operators:
 \toprule
 \textbf{Notation}        & \textbf{Meaning} \\
 \midrule
-\verb+a | b+             & either \texttt{a} or \texttt{b} \\
-\verb|(a b)|             & grouping \\
-\verb|[a b]|             & optional: \texttt{a b} or nothing \\
-\verb|a?|                & optional: \texttt{a} or nothing \\
-\verb|a*|                & zero or more repetitions of \texttt{a} \\
-\verb|a+|                & one or more repetitions of \texttt{a} \\
-\verb|a ~ 3|             & exactly three repetitions of \texttt{a} \\
-\verb|a ~ 2..4|          & between two and four repetitions of \texttt{a} \\
+«\verb+a | b+»             & either \texttt{a} or \texttt{b} \\
+«\verb|(a b)|»             & grouping \\
+«\verb|[a b]|»             & optional: \texttt{a b} or nothing \\
+«\verb|a?|»                & optional: \texttt{a} or nothing \\
+«\verb|a*|»                & zero or more repetitions of \texttt{a} \\
+«\verb|a+|»                & one or more repetitions of \texttt{a} \\
+«\verb|a ~ 3|»             & exactly three repetitions of \texttt{a} \\
+«\verb|a ~ 2..4|»          & between two and four repetitions of \texttt{a} \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -216,16 +216,16 @@ args: expr ("," expr)*
 \end{minted}
 \end{unbreakable}
 describes a possibly empty list of expressions.  A rule can be given a \blue{priority} by appending a dot and
-a number to its name, as in \verb|expr.2: ...|.  Priorities are used to resolve reduce/reduce conflicts, see
+a number to its name, as in «\verb|expr.2: ...|».  Priorities are used to resolve reduce/reduce conflicts, see
 Section \ref{sec:priorities}.
 
 \subsection{Terminals}
 There are three ways to specify the tokens of a language:
 \begin{enumerate}
 \item A \blue{literal} is a string enclosed in double quotes, e.g.~\verb|"while"|.  If the letter \texttt{i}
-      is appended, as in \verb|"while"i|, upper and lower case are not distinguished.
-\item A \blue{regular expression} is enclosed in slashes, e.g.~\verb|/[0-9]+/|.  It can be followed by flags,
-      e.g.~\verb|/begin/i|.  The syntax is the syntax of the \textsl{Python} module \texttt{re}.
+      is appended, as in «\verb|"while"i|», upper and lower case are not distinguished.
+\item A \blue{regular expression} is enclosed in slashes, e.g.~«\verb|/[0-9]+/|».  It can be followed by flags,
+      e.g.~«\verb|/begin/i|».  The syntax is the syntax of the \textsl{Python} module \texttt{re}.
 \item A \blue{terminal} is defined by a rule whose name is written in upper case.  Its right hand side may
       use literals, regular expressions, other terminals, and the operators shown above.  For example:
 \begin{unbreakable}
@@ -237,7 +237,7 @@ STRING: /"[^"]*"/
 \end{minted}
 \end{unbreakable}
       The notation \verb|"0".."9"| denotes a range of characters.  A terminal can be given a priority, as in
-      \verb|FLOAT.2: INT "." INT|.  If two terminals match the input, the scanner prefers the terminal with
+      «\verb|FLOAT.2: INT "." INT|».  If two terminals match the input, the scanner prefers the terminal with
       the higher priority.
 \end{enumerate}
 The library \texttt{common.lark} defines the following terminals, among others:
@@ -258,12 +258,16 @@ The library \texttt{common.lark} defines the following terminals, among others:
 \bottomrule
 \end{tabular}
 \end{center}
-They are imported with \verb|%import common.NAME|; with \verb|%import common.NAME -> NEW_NAME| the terminal
-is renamed.
+They are imported with «\verb|%import common.NAME|».  The command
+\\[0.2cm]
+\hspace*{1.3cm}
+\verb|%import common.NAME -> NEW_NAME|
+\\[0.2cm]
+also renames the terminal.
 
 \subsection{The scanner}
 \label{sec:scanner}
-The scanner splits the input into tokens.  The command \verb|%ignore NAME| tells the scanner to skip the
+The scanner splits the input into tokens.  The command «\verb|%ignore NAME|» tells the scanner to skip the
 tokens of the terminal \texttt{NAME}, e.g.~white space or comments.  The method \texttt{lex} runs only the
 scanner, which is useful when a grammar does not work as expected.  Figure \ref{fig:lex.py} shows an example.
 \pythonfile{lex.py}{The program \texttt{lex.py} splits a string into tokens.}
@@ -271,7 +275,7 @@ The method \texttt{lex} returns an iterator over the tokens.  Every token has a 
 column.  The program prints them in the form \texttt{line:column}:
 \resultfile{lex}
 \Larkita\ invents names for the terminals that are given as literals, e.g.~\texttt{STAR} for \verb|"*"|.  If a
-literal has no obvious name, it is called \verb|__ANON_0|, \verb|__ANON_1|, etc.  The output file and the
+literal has no obvious name, it is called «\verb|__ANON_0|», «\verb|__ANON_1|», etc.  The output file and the
 error messages show literals in quotes instead.
 
 Keywords are handled automatically:  If a literal like \verb|"while"| can also be matched by the terminal of
@@ -280,7 +284,7 @@ the identifiers, the string «\texttt{while}» is recognized as the keyword, but
 
 By default, the scanner is \blue{contextual}:  In every state of the parser, it only tries to match those
 terminals that the parser can accept in this state.  This avoids many collisions between terminals.  With the
-option \verb|lexer='basic'|, the scanner always tries all terminals.
+option «\verb|lexer='basic'|», the scanner always tries all terminals.
 
 \section{How the Abstract Syntax Tree is Built}
 \label{sec:ast}
@@ -300,8 +304,8 @@ followed by some strings and their abstract syntax trees.  The examples are prod
 When the parser reduces with an alternative, the string literals of this alternative form the
 \blue{head} of a new tuple.  All other symbols of the alternative provide the \blue{children} of the
 tuple:  A syntactical variable contributes its abstract syntax tree, while a named terminal contributes a pair
-of the form \verb|(NAME, text)|, where \texttt{text} is the text that has been read.  This text is never
-converted, so the number 1 is represented as \verb|('NUM', '1')|.  If an alternative contains exactly one
+of the form «\verb|(NAME, text)|», where \texttt{text} is the text that has been read.  This text is never
+converted, so the number 1 is represented as «\verb|('NUM', '1')|».  If an alternative contains exactly one
 literal, the head is this literal:
 \resultfile{shapes-head}
 If an alternative contains several literals, the head is the tuple of these literals in the order in which
@@ -311,17 +315,17 @@ they occur in the alternative:
 \subsection{Pass-through}
 If an alternative has no head and consists of a single symbol, then no new tuple is built.  Instead, the
 abstract syntax tree of this symbol is returned.  This rule is called \blue{pass-through}.  It guarantees that
-alternatives like \verb|sum: atom| leave no trace in the abstract syntax tree:
+alternatives like «\verb|sum: atom|» leave no trace in the abstract syntax tree:
 \resultfile{shapes-pass-through}
-The string «\texttt{42}» is parsed with the alternatives \verb|sum: atom| and \verb|atom: NUM|, but the result is
-just the pair \verb|('NUM', '42')|.
+The string «\texttt{42}» is parsed with the alternatives «\verb|sum: atom|» and «\verb|atom: NUM|», but the result is
+just the pair «\verb|('NUM', '42')|».
 
 \subsection{The rule name as head}
 If an alternative has no head and is not a pass-through, the name of the rule is used as head:
 \resultfile{shapes-rule-name}
-Pass-through is decided by the grammar, not by the input:  The alternative \verb|program: stmnt*|
+Pass-through is decided by the grammar, not by the input:  The alternative «\verb|program: stmnt*|»
 always builds a tuple, even if the input contains only one statement.  For the empty string, it builds the
-tuple \verb|('program',)|, which has no children.
+tuple «\verb|('program',)|», which has no children.
 
 \subsection{Repetitions and groups}
 The children produced by repetitions and groups are inserted into the tuple of the alternative in which they
@@ -340,33 +344,33 @@ been present.
 \subsection{Ignoring literals}
 Some literals are needed for parsing, but they carry no information once the abstract syntax tree has been
 built.  For example, parentheses determine the structure of an expression, but this structure is already
-represented by the tuples.  Writing \verb|%ignore| followed by a list of literals at the end of an
+represented by the tuples.  Writing «\verb|%ignore|» followed by a list of literals at the end of an
 alternative removes these literals from the head of this alternative.  In the following example, the
-alternative \verb|atom: "(" sum ")"| therefore has no head and is a pass-through:
+alternative «\verb|atom: "(" sum ")"|» therefore has no head and is a pass-through:
 \resultfile{shapes-ignore}
-If some literals should be removed from all alternatives of the grammar, the command \verb|%ignore:| (with a
+If some literals should be removed from all alternatives of the grammar, the command «\verb|%ignore:|» (with a
 colon) is used.  In the following example, the alternative has no head left.  As it is not a pass-through, the
 name of the rule becomes the head:
 \resultfile{shapes-ignore-global}
-Note that there are three different forms of \verb|%ignore|:
+Note that there are three different forms of «\verb|%ignore|»:
 \begin{center}
-\begin{tabular}{l>{\raggedright\arraybackslash}p{10.3cm}}
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{10.3cm}@{}}
 \toprule
 \textbf{Form}                    & \textbf{Effect} \\
 \midrule
-\verb|%ignore WS|                & the scanner skips the tokens of the terminal \texttt{WS} \\
-\verb|a: ... %ignore "(", ")"|   & the literals are removed from the head of this alternative \\
-\verb|%ignore: "(", ")"|         & the literals are removed from the heads of all alternatives \\
+«\verb|%ignore WS|»                & the scanner skips the tokens of the terminal \texttt{WS} \\
+«\verb|a: ... %ignore "(", ")"|»   & the literals are removed from the head of this alternative \\
+«\verb|%ignore: "(", ")"|»         & the literals are removed from the heads of all alternatives \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 \subsection{Aliases}
 An \blue{alias} replaces the head of an alternative.  It is written at the end of the alternative, either as
-a name or as a string:  \verb|-> call| and \verb|-> "call"| are equivalent.
+a name or as a string:  «\verb|-> call|» and «\verb|-> "call"|» are equivalent.
 \resultfile{shapes-alias}
 Aliases are useful when the same literals are used for different purposes.  Here, the unary minus and the
-binary minus both use the literal \verb|"-"|.  Without the alias, both would produce the head \verb|'-'|.
+binary minus both use the literal \verb|"-"|.  Without the alias, both would produce the head «\verb|'-'|».
 Although the number of children would still tell them apart, the alias \texttt{neg} makes the abstract syntax
 tree easier to read.
 
@@ -397,7 +401,7 @@ ret: "return" [expr] ";"
 \end{unbreakable}
 
 \section{Processing the Abstract Syntax Tree}
-Abstract syntax trees that are represented as nested tuples are best processed with the \verb|match|
+Abstract syntax trees that are represented as nested tuples are best processed with the «\verb|match|»
 statement of \textsl{Python}.  As an example, we implement a simple calculator.  Its grammar
 \texttt{calc.g}, which is shown in Figure \ref{fig:calc.g}, extends the grammar \texttt{expr.g}:  A program
 is a sequence of statements, the statement «\verb|print expr;|» prints the value of an expression, and there is
@@ -407,46 +411,49 @@ The program \texttt{calc.py} in Figure \ref{fig:calc.py} parses a small program,
 tree, and executes it.
 \pythonfile{calc.py}{The program \texttt{calc.py} implements the calculator.}
 \begin{itemize}
-\item The function \texttt{evaluate} computes the value of an expression.  Every \verb|case| corresponds to an
-      alternative of the grammar:  The pattern \verb|('+', lhs, rhs)| matches the tuples produced by the
-      alternative \verb|expr: expr "+" product| and binds the variables \texttt{lhs} and \texttt{rhs} to the
+\item The function \texttt{evaluate} computes the value of an expression.  Every «\verb|case|» corresponds to an
+      alternative of the grammar:  The pattern «\verb|('+', lhs, rhs)|» matches the tuples produced by the
+      alternative «\verb|expr: expr "+" product|» and binds the variables \texttt{lhs} and \texttt{rhs} to the
       abstract syntax trees of the operands.  The alias \texttt{neg} distinguishes the unary minus from the
       binary minus.
 \item The function \texttt{execute} executes a program.  As the head of the abstract syntax tree of a program
-      is the rule name \texttt{program}, the statements are the components \verb|program[1:]|.  As the
-      semicolons are ignored, the head of an assignment is \verb|':='| and the head of a \verb|print|
-      statement is \verb|'print'|.
+      is the rule name \texttt{program}, the statements are the components «\verb|program[1:]|».  As the
+      semicolons are ignored, the head of an assignment is «\verb|':='|» and the head of a «\verb|print|»
+      statement is «\verb|'print'|».
 \end{itemize}
 The program prints the following:
 \resultfile{calc}
 
 \section{A Small Interpreter}
 \label{sec:interpreter}
-Our next example is an interpreter for a small imperative language with assignments, \verb|print|
-statements, \verb|if| statements, \verb|while| loops, and blocks.  Its grammar \texttt{while.g} in Figure
-\ref{fig:while.g} shows how \verb|%ignore:| and aliases keep the abstract syntax tree small.
+Our next example is an interpreter for a small imperative language with assignments, «\verb|print|»
+statements, «\verb|if|» statements, «\verb|while|» loops, and blocks.  Its grammar \texttt{while.g} in Figure
+\ref{fig:while.g} shows how «\verb|%ignore:|» and aliases keep the abstract syntax tree small.
 \grammarfile{while.g}{The grammar \texttt{while.g} of a small imperative language.}
 Instead of ignoring literals in every alternative separately, line 29 removes parentheses, braces, and
 semicolons from all heads.  Hence:
 \begin{itemize}
-\item An assignment «\verb|x := e;|» is represented as \verb|(':=', ('IDENTIFIER', 'x'), ast(e))|.
-\item A statement «\verb|print(e);|» is represented as \verb|('print', ast(e))|.
-\item The head of an \verb|if| statement would be \verb|('if', 'else')|.  The alias in line 7 replaces it with
-      \verb|'if'|, so an \verb|if| statement is represented as \verb|('if', ast(c), ast(s1), ast(s2))|.
-\item A loop «\verb|while (c) s|» is represented as \verb|('while', ast(c), ast(s))|.
+\item An assignment «\verb|x := e;|» is represented as
+      \\[0.2cm]
+      \hspace*{1.3cm}
+      \verb|(':=', ('IDENTIFIER', 'x'), ast(e))|.
+\item A statement «\verb|print(e);|» is represented as «\verb|('print', ast(e))|».
+\item The head of an «\verb|if|» statement would be «\verb|('if', 'else')|».  The alias in line 7 replaces it with
+      «\verb|'if'|», so an «\verb|if|» statement is represented as «\verb|('if', ast(c), ast(s1), ast(s2))|».
+\item A loop «\verb|while (c) s|» is represented as «\verb|('while', ast(c), ast(s))|».
 \item A block has no head left.  Without the alias in line 9, the rule name \texttt{stmnt} would be used as
-      head.  With the alias, a block is represented as \verb|('block', ast(s1), ..., ast(sn))|.
-\item The alternative \verb|factor: "(" expr ")"| in line 25 has no head and is therefore a pass-through.
+      head.  With the alias, a block is represented as «\verb|('block', ast(s1), ..., ast(sn))|».
+\item The alternative «\verb|factor: "(" expr ")"|» in line 25 has no head and is therefore a pass-through.
 \end{itemize}
 Line 33 and 35 tell the scanner to skip comments.  Figure \ref{fig:while.py:interpreter} shows the
 interpreter.
 \codefigure[lastline = 40]{python3}{while.py}{fig:while.py:interpreter}{The interpreter \texttt{while.py},
   part 1: the evaluation of expressions and the execution of statements.}
 \begin{itemize}
-\item As all binary operators produce tuples of the form \verb|(op, lhs, rhs)|, the function
+\item As all binary operators produce tuples of the form «\verb|(op, lhs, rhs)|», the function
       \texttt{evaluate} needs only one case for them.  The dictionary \texttt{OPERATORS} maps every operator to
       the corresponding function of the module \texttt{operator}.
-\item In the function \texttt{execute}, the pattern \verb+('program' | 'block', *body)+ matches both programs
+\item In the function \texttt{execute}, the pattern «\verb+('program' | 'block', *body)+» matches both programs
       and blocks.  The star collects the statements of the program or the block in the list \texttt{body}.
 \end{itemize}
 Figure \ref{fig:while.py:euclid} shows the first program that is executed by the interpreter.  It computes
@@ -470,10 +477,10 @@ If the input contains a syntax error, the method \texttt{parse} raises an except
 \item \texttt{UnexpectedToken} is raised by the parser if it reads a token that it cannot accept in its
       current state.  The attribute \texttt{token} contains this token and the attribute \texttt{expected}
       contains the set of terminals that the parser would have accepted.  If the input ends prematurely, the
-      token has the type \verb|$END|.
+      token has the type «\verb|$END|».
 \end{itemize}
 Both exceptions are subclasses of \texttt{UnexpectedInput}.  They provide the attributes \texttt{line} and
-\texttt{column}, which give the position of the error, and the method \verb|get_context(text)|, which returns
+\texttt{column}, which give the position of the error, and the method «\verb|get_context(text)|», which returns
 the line containing the error together with a marker that points to the error.  The program
 \texttt{errors.py} in Figure \ref{fig:errors.py} checks three erroneous programs for the grammar
 \texttt{while.g}.  Every program starts on the line after the opening quotes.  The function \texttt{check}
@@ -495,17 +502,17 @@ grammar \texttt{expr.g}, the output file \texttt{expr.out} begins as follows:
 Next, the file lists the rules of the grammar.  Every rule has a number, and every rule is followed by the
 abstract syntax tree that a reduction with this rule produces:
 \resultfile[\small]{expr-rules}
-Rule (0) is added by \Larkita: Its left hand side is the new start symbol \verb|$root_stmnt|.  If the grammar
-uses operators like \verb|*| or \verb|?|, the list contains the auxiliary rules that \Larkita\ has introduced
+Rule (0) is added by \Larkita: Its left hand side is the new start symbol «\verb|$root_stmnt|».  If the grammar
+uses operators like «\verb|*|» or «\verb|?|», the list contains the auxiliary rules that \Larkita\ has introduced
 for them.  Then the file lists the conflicts of the grammar, if there are any.  Finally, it describes all
 states of the parser.  For example, state 2 is the state that the parser enters after it has read an
 identifier at the beginning of a statement:
 \resultfile[\small]{expr-state}
 \begin{itemize}
-\item The first part of a state lists its \blue{items}.  An item is a rule with a dot \verb|•| marking how
+\item The first part of a state lists its \blue{items}.  An item is a rule with a dot «\verb|•|» marking how
       much of the right hand side has already been read.  It is followed by the set of \blue{look-ahead
       tokens}: These are the tokens that can follow the left hand side of the rule when the parser reduces
-      with this rule.  Items that have been added by the closure operation are marked with a \verb|+| at the
+      with this rule.  Items that have been added by the closure operation are marked with a «\verb|+|» at the
       beginning of the line.  State 2 has no such items.
 \item The second part lists the \blue{actions} of the state.  For every token that the parser can accept in
       this state, it says whether the parser shifts the token or reduces with a rule.  Furthermore, it lists the
@@ -527,21 +534,21 @@ shift the next token or reduce with a rule.  A \blue{reduce/reduce conflict} occ
 two different rules.
 
 \subsection{Shift/reduce conflicts}
-The grammar \texttt{dangling.g} in Figure \ref{fig:dangling.g} describes nested \verb|if| statements.  It
+The grammar \texttt{dangling.g} in Figure \ref{fig:dangling.g} describes nested «\verb|if|» statements.  It
 suffers from the \blue{dangling else problem}:  In a statement like «\verb|if (a) if (b) x; else y;|» it is not
-clear whether the \verb|else| belongs to the first or to the second \verb|if|.
+clear whether the «\verb|else|» belongs to the first or to the second «\verb|if|».
 \grammarfile{dangling.g}{The grammar \texttt{dangling.g} has a shift/reduce conflict.}
 \Larkita\ resolves shift/reduce conflicts in favour of shifting.  In addition, it issues a warning of the
 class \texttt{ConflictWarning}.  The program \texttt{dangling.py} in Figure \ref{fig:dangling.py} catches
 this warning and prints it:
 \pythonfile{dangling.py}{The program \texttt{dangling.py} catches the warning about the conflict.}
 \resultfile[\small]{dangling}
-Shifting means that an \verb|else| belongs to the innermost \verb|if| that has no \verb|else| yet, which is
+Shifting means that an «\verb|else|» belongs to the innermost «\verb|if|» that has no «\verb|else|» yet, which is
 the rule used by most programming languages.  The output file \texttt{dangling.out} lists the conflict:
 \resultfile[\small]{dangling-conflicts}
 The conflict is also shown in the state where it occurs:
 \resultfile[\small]{dangling-state}
-After reading «\verb|if (a) if (b) x;|», the parser could either reduce the inner \verb|if| statement with rule
+After reading «\verb|if (a) if (b) x;|», the parser could either reduce the inner «\verb|if|» statement with rule
 (1) or shift the token \verb|"else"|.  The look-ahead token \verb|"else"| is contained in the look-ahead sets of
 both items.
 
@@ -552,7 +559,7 @@ warnings.simplefilter('error', ConflictWarning)
 \end{minted}
 \end{unbreakable}
 turns these warnings into exceptions, so that every shift/reduce conflict is reported as an error, while
-\verb|warnings.simplefilter('ignore', ConflictWarning)| suppresses them.
+«\verb|warnings.simplefilter('ignore', ConflictWarning)|» suppresses them.
 
 \subsection{Reduce/reduce conflicts}
 \Larkita\ treats reduce/reduce conflicts as errors: It raises a \texttt{GrammarError}.  The grammar
@@ -596,7 +603,7 @@ Canonical LR(1) automata can have many states.  For example, the parser for the 
 Section \ref{sec:interpreter} has 142 states.  Many of these states have the same \blue{core}, i.e.~they contain the same items
 and only differ in the look-ahead sets of these items.  An LALR(1) parser merges all states with the same core,
 which yields far fewer states, but this can cause reduce/reduce conflicts that the canonical LR(1) parser does
-not have.  With the option \verb|merge_states=True|, \Larkita\ merges states with the same core, as long as
+not have.  With the option «\verb|merge_states=True|», \Larkita\ merges states with the same core, as long as
 this is safe:
 \begin{enumerate}
 \item Merging must not cause a new conflict, neither in the merged states nor in their successors.  As two
@@ -620,12 +627,12 @@ A new section of the output file explains why some states with the same core hav
 as follows:
 \resultfile[\small]{while-merged}
 After the statement «\verb|{}|», state 15 expects the next statement, which may start with an identifier, while
-state 65 expects the keyword \verb|else|, because the block is the then-branch of an \verb|if| statement.  In
+state 65 expects the keyword «\verb|else|», because the block is the then-branch of an «\verb|if|» statement.  In
 state 15, the contextual scanner reads the string «\texttt{else}» as an identifier, because the keyword
 \verb|"else"| cannot occur here.  If the two states were merged, the scanner would read «\texttt{else}» as a
 keyword in both contexts.  Hence, these states are kept apart.  The output file lists five more pairs of
 this kind, one for every other kind of statement.  For example, the parser reaches state 27 after an
-assignment like «\verb|x := 1;|» that is not followed by \verb|else|.  Therefore, both the canonical parser
+assignment like «\verb|x := 1;|» that is not followed by «\verb|else|».  Therefore, both the canonical parser
 and the parser with merged states read the string «\texttt{else}» in «\verb|x := 1; else := 2;|» as an
 identifier.  All other states that have been kept apart only differ in their successors.
 
@@ -668,40 +675,40 @@ Larkita(grammar, *, start=None, lexer='contextual', import_paths=(),
 \begin{itemize}
 \item \texttt{grammar}: the grammar as a string or as an open file.
 \item \texttt{start}: the start symbol.  By default, the first rule defines the start symbol.
-\item \texttt{lexer}: either \verb|'contextual'| or \verb|'basic'|.
+\item \texttt{lexer}: either «\verb|'contextual'|» or «\verb|'basic'|».
 \item \texttt{import\_paths}: additional directories that are searched for imported grammars.
 \item \texttt{source\_path}: the file name of the grammar.  It is used for relative imports and to name the
       output file.
 \item \texttt{out\_file}: the path of the output file.
 \item \texttt{regex}: if \texttt{True}, the module \texttt{regex} is used instead of the module \texttt{re}.
-\item \verb|g_regex_flags|: flags that are applied to all regular expressions, e.g.~\verb|re.IGNORECASE|.
-\item \verb|merge_states|: if \texttt{True}, states with the same core are merged, as long as this is safe
+\item «\verb|g_regex_flags|»: flags that are applied to all regular expressions, e.g.~«\verb|re.IGNORECASE|».
+\item «\verb|merge_states|»: if \texttt{True}, states with the same core are merged, as long as this is safe
       (see Section \ref{sec:merging}).
 \end{itemize}
-\verb|Larkita.open(filename, rel_to=None, **options)| reads the grammar from a file.  If \verb|rel_to| is
-given, the file name is interpreted relative to the directory of the file \verb|rel_to|, so
-\verb|Larkita.open('expr.g', rel_to=__file__)| finds a grammar that is stored next to the program.  The other
+«\verb|Larkita.open(filename, rel_to=None, **options)|» reads the grammar from a file.  If «\verb|rel_to|» is
+given, the file name is interpreted relative to the directory of the file «\verb|rel_to|», so
+«\verb|Larkita.open('expr.g', rel_to=__file__)|» finds a grammar that is stored next to the program.  The other
 options are passed to the constructor.
 
 A parser provides the following methods and attributes:
 \begin{itemize}
-\item \verb|parse(text)| returns the abstract syntax tree of \texttt{text}.
-\item \verb|lex(text)| returns an iterator over the tokens of \texttt{text}.
+\item «\verb|parse(text)|» returns the abstract syntax tree of \texttt{text}.
+\item «\verb|lex(text)|» returns an iterator over the tokens of \texttt{text}.
 \item \texttt{rules}, \texttt{terminals}, \texttt{conflicts}, \texttt{parse\_table}, and
-      \verb|out_file| describe the generated parser.
+      «\verb|out_file|» describe the generated parser.
 \end{itemize}
 
 \subsection{Grammar commands}
 \begin{itemize}
-\item \verb|%import common.NAME| imports a terminal from the library \texttt{common.lark}.
-\item \verb|%import .file.NAME| imports a rule or a terminal from the grammar \texttt{file.lark}, which is
+\item «\verb|%import common.NAME|» imports a terminal from the library \texttt{common.lark}.
+\item «\verb|%import .file.NAME|» imports a rule or a terminal from the grammar \texttt{file.lark}, which is
       stored in the directory of the current grammar.
-\item \verb|-> NEW_NAME| at the end of an import renames the imported symbol.
-\item \verb|%ignore NAME| makes the scanner skip the terminal \texttt{NAME}.
-\item \verb|%ignore "a", "b"| at the end of an alternative removes these literals from its head, while
-      \verb|%ignore: "a", "b"| removes them from all heads.
-\item \verb|%declare NAME| declares a terminal that is not defined in the grammar.
-\item \verb|%override| and \verb|%extend| replace or extend a rule or a terminal that has been imported.
+\item «\verb|-> NEW_NAME|» at the end of an import renames the imported symbol.
+\item «\verb|%ignore NAME|» makes the scanner skip the terminal \texttt{NAME}.
+\item «\verb|%ignore "a", "b"|» at the end of an alternative removes these literals from its head, while
+      «\verb|%ignore: "a", "b"|» removes them from all heads.
+\item «\verb|%declare NAME|» declares a terminal that is not defined in the grammar.
+\item «\verb|%override|» and «\verb|%extend|» replace or extend a rule or a terminal that has been imported.
 \end{itemize}
 
 \subsection{Exceptions and warnings}
@@ -726,15 +733,15 @@ Readers who know \Lark\ should note the following differences:
 \item \Larkita\ always builds the canonical LR(1) automaton; an LALR(1) parser is obtained by merging states
       (see below).  The Earley and CYK parsers of \Lark\ are not available.
 \item The parser returns nested tuples.  There are no trees, transformers, or visitors.  Therefore, the rule
-      modifiers \verb|?rule| and \verb|!rule| are not supported, and rules and terminals whose names start
+      modifiers «\verb|?rule|» and «\verb|!rule|» are not supported, and rules and terminals whose names start
       with an underscore are neither inlined nor filtered.
-\item Aliases and \verb|%ignore| after an alternative and \verb|%ignore:| control the heads of the tuples.
+\item Aliases and «\verb|%ignore|» after an alternative and «\verb|%ignore:|» control the heads of the tuples.
 \item Grammar templates, post-lexers like the \texttt{Indenter}, lexer callbacks, the interactive parser,
       and caching are not supported.
 \item Shift/reduce conflicts are resolved as shift with a warning, and every parser comes with an output file
       that describes the LR(1) automaton.
 \item By default, the states of the canonical LR(1) automaton are not merged.  If the option
-      \verb|merge_states=True| is given, states with the same core are merged as far as this is safe.
+      «\verb|merge_states=True|» is given, states with the same core are merged as far as this is safe.
 \end{itemize}
 
 \end{document}
