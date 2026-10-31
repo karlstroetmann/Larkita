@@ -146,6 +146,7 @@ In detail:
 
 ```
 %ignore WS                      // the lexer skips the terminal WS
+%ignore WS, COMMENT             // the lexer skips the terminals WS and COMMENT
 factor: "(" expr ")"  %ignore "(", ")"
                                 // "(" and ")" are left out of the head of this alternative
 %ignore: "(", ")", "{", "}"     // these literals are left out of the heads of all rules

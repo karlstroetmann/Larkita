@@ -206,6 +206,17 @@ class TestClarifications(LarkitaTestCase):
         self.assertEqual(self.parse(g, 'while ((1)) { 2; }'),
                          ('while', ('NUMBER', '1'), ('stmt', (';', ('NUMBER', '2')))))
 
+    def test_list_of_ignored_terminals(self):
+        g = 'a: NUMBER*\nCOMMENT: /#[^\\n]*/\nSEMI: ";"\n'
+        one_per_line = self.make(g + '%ignore COMMENT\n%ignore SEMI\n')
+        as_list = self.make(g + '%ignore COMMENT, SEMI\n')
+        self.assertEqual(as_list.grammar.ignore, one_per_line.grammar.ignore)
+        self.assertEqual(as_list.parse('1; # one\n2'), ('a', ('NUMBER', '1'), ('NUMBER', '2')))
+
+    def test_list_of_ignored_expansions(self):
+        g = 'a: NUMBER*\n%ignore /#[^\\n]*/, ";"\n'
+        self.assertEqual(self.parse(g, '1; # one\n2'), ('a', ('NUMBER', '1'), ('NUMBER', '2')))
+
     def test_start_symbol(self):
         g = 'a: b ";"\nb: NUMBER'
         self.assertEqual(self.make(g).start, 'a')
@@ -458,6 +469,13 @@ class TestErrors(LarkitaTestCase):
     def test_undefined_rule(self):
         with self.assertRaises(GrammarError):
             self.make('a: b')
+
+    def test_alternatives_in_list_of_ignored_terminals_are_rejected(self):
+        g = 'a: NUMBER*\nB: "b"\nC: "c"\nD: "d"\n'
+        for ignore in ['%ignore B | C, D', '%ignore B, C | D', '%ignore B, C -> x']:
+            for grammar in [g + ignore, ignore + '\n' + g]:
+                with self.assertRaisesRegex(GrammarError, 'cannot contain'):
+                    self.make(grammar)
 
 
 class TestExampleGrammars(LarkitaTestCase):

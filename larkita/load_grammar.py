@@ -160,7 +160,12 @@ RULES = {
                  '_OVERRIDE term'],
     'extend': ['_EXTEND rule',
                '_EXTEND term'],
-    'ignore': ['_IGNORE expansions _NL'],
+    'ignore': ['_IGNORE expansions _NL',
+               '_IGNORE _ignore_list _NL'],
+    # %ignore WS, COMMENT  --  several terminals that are skipped by the lexer.  The elements are
+    # expansions without "|", so that the comma after the first one decides which form is meant.
+    '_ignore_list': ['expansion _COMMA expansion',
+                     '_ignore_list _COMMA expansion'],
     # %ignore: "(", ")"  --  literals that are ignored in the abstract syntax trees of all rules
     'ast_ignore': ['_IGNORE _COLON _literals _NL'],
     'declare': ['_DECLARE _declare_args _NL'],
@@ -1002,6 +1007,12 @@ GRAMMAR_ERRORS = [
         ('Expecting rule or terminal definition', ['"a"\n']),
         ('%import expects a name', ['%import "a"\n']),
         ('%ignore expects a value', ['%ignore %import\n']),
+        # Every example is given as the first statement and after another one, since the error is only
+        # recognized if the parser's stack has the same height.
+        ('The elements of a list after %ignore cannot contain "|" or "->"',
+         [first + example for first in ('', 'A: "a"\n')
+          for example in ('%ignore A | B, C\n', '%ignore A -> b, C\n', '%ignore A, B | C\n',
+                          '%ignore A, B -> c\n', '%ignore A, B, C | D\n', '%ignore A, B, C -> d\n')]),
     ]
 
 def _translate_parser_exception(parse, e):
@@ -1150,6 +1161,9 @@ class GrammarBuilder:
         else:
             assert isinstance(exp_or_name, Tree)
             t = exp_or_name
+            if t.data == 'expansion':
+                # an element of a list, as in %ignore WS, COMMENT
+                t = ST('expansions', [t])
             if t.data == 'expansions' and len(t.children) == 1:
                 t2 ,= t.children
                 if t2.data=='expansion' and len(t2.children) == 1:
@@ -1255,7 +1269,8 @@ class GrammarBuilder:
             elif stmt.data == 'ignore':
                 # if mangle is not None, we shouldn't apply ignore, since we aren't in a toplevel grammar
                 if mangle is None:
-                    self._ignore(*stmt.children)
+                    for item in stmt.children:
+                        self._ignore(item)
             elif stmt.data == 'ast_ignore':
                 # Like %ignore, this only applies to the toplevel grammar
                 if mangle is None:

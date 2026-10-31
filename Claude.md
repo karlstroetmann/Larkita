@@ -162,6 +162,8 @@ The following points make the rules above precise.
 
 9.  **The three forms of `%ignore`.**
     * `%ignore WS` (a named terminal on its own line): the lexer skips the token.
+      Several terminals can be listed, separated by commas: `%ignore WS, COMMENT`.  The elements of
+      the list may be any expansions without `|` and without an alias, e.g. `/\s+/`.
     * `%ignore "(", ")"` written after an alternative: these literals are dropped
       from the abstract syntax tree of *that alternative*.
     * `%ignore: "(", ")", "{", "}"` (with a colon) on its own line: these literals
@@ -221,7 +223,7 @@ The following points make the rules above precise.
 
 ## Handoff: state of the work and how to continue
 
-Last updated on 2026-10-30.  Everything described here is committed and pushed; there are no
+Last updated on 2026-10-31.  Everything described here is committed and pushed; there are no
 pending tasks.  The memory of earlier Claude Code sessions is only stored on the home computer
 (under the old directory name `simple-lark`), so this section is the reference.
 
@@ -235,6 +237,10 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
   * `Lecture-Notes/`: the LaTeX lecture notes.  Its own `CLAUDE.md` contains the author's rules.
   * `Python/Chapter-NN/`: the Jupyter notebooks, numbered like the chapters.
   * `fl.sh`: creates the conda environment `fl` and installs Larkita from PyPI.
+  * The PDF of the lecture notes is not tracked.  It is the asset of the GitHub release
+    `lecture-notes`.  On 2026-10-31, the history was rewritten (with `git filter-repo` and a force push)
+    to remove the old versions of the PDF and of the big images; the repository shrank from 640 MB to
+    43 MB.  Images are kept at about 200 dpi at their printed width.
 * In both repositories, commits go directly to `master`.  Commit and push only after the author has
   agreed.  Commit messages end with the line
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
@@ -252,9 +258,10 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 3. Course notebooks: all notebooks that used Lark use Larkita now.  The Lark versions
    (`name-lark.ipynb`) were deleted on 2026-10-30.  Notebooks are committed without outputs.
    `Python/Chapter-11/06-Merging-States.ipynb` demonstrates `merge_states`.
-4. The lecture notes describe Larkita instead of Lark: chapter 7 (`lark.tex`), chapter 8
-   (`lark-interpreter.tex`), chapter 11 (`lark-lalr.tex`, including the subsection 11.3.3 "Merging
-   States"), and chapter 13 (`compiler.tex`).  Decisions of the author: Lark is only mentioned in a
+4. The lecture notes describe Larkita instead of Lark: chapter 7 (`larkita.tex`), chapter 8
+   (`larkita-interpreter.tex`), chapter 11 (`larkita-lalr.tex`, including the subsection 11.3.3
+   "Merging States"), and chapter 13 (`compiler.tex`).  (Until 2026-10-31, these files were called
+   `lark.tex`, `lark-interpreter.tex`, and `lark-lalr.tex`.)  Decisions of the author: Lark is only mentioned in a
    footnote in chapter 7; the pictures were kept and their captions adapted; the subtitle is
    "An Introduction via Larkita".
 5. Larkita is published on PyPI (<https://pypi.org/project/larkita/>); the first version, 0.1.0, was
@@ -266,17 +273,23 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
    interpreters (chapter 8) and compilers (chapter 13) use them for the comparison, additive, and
    multiplicative operators, e.g. `expr: expr ("+" | "-") product`; the lecture notes show these
    grammars.  The notebooks of chapters 7 and 11 keep one alternative per operator on purpose.
+7. Version 0.3.0 allows a list after `%ignore`, e.g. `%ignore WS, C_COMMENT, CPP_COMMENT`
+   (clarification 9).  Released on 2026-10-31.  The interpreters of chapter 8, the table generators of
+   chapter 10, and the listing of the interpreter's grammar in the lecture notes use it.  In
+   chapter 13, the two `%ignore` directives stay apart, since each one is explained in its own cell.
 
 ### Constraints
 
 * `Python/Chapter-08/Interpreter.ipynb` is the solution of an exercise.  It is listed in
-  `Python/Chapter-08/.gitignore` and must never be committed.  (It was committed once by mistake;
-  commit 883d01a stopped tracking it.  The author decided not to rewrite the history.)
+  `Python/Chapter-08/.gitignore` and must never be committed.  (It was committed once by mistake as
+  `Interpreter-larkita.ipynb`; commit 05cbd84 stopped tracking it.  The author decided not to remove
+  it from the history.)
 * Lecture notes (details in `Lecture-Notes/CLAUDE.md`): ask before changes of taste or content;
   listings that show notebook code must match the notebook; fonts must not become smaller (wide
   listings are fixed with `gobble`, smaller margins, or by rewrapping the code in the notebook);
-  new notions are written as `\blue{term}\index{term}`; `formal-languages.pdf` and
-  `formal-languages.idx` are committed together with the sources.
+  new notions are written as `\blue{term}\index{term}`; `formal-languages.idx` is committed together
+  with the sources, and the PDF is uploaded with
+  `gh release upload lecture-notes formal-languages.pdf --clobber`.
 
 ### How to check the work
 

@@ -32,5 +32,4 @@ factor: "(" expr ")"
 %import common.INT -> NUMBER
 %import common.CPP_COMMENT
 %import common.WS
-%ignore CPP_COMMENT
-%ignore WS
+%ignore CPP_COMMENT, WS

@@ -268,7 +268,8 @@ also renames the terminal.
 \subsection{The scanner}
 \label{sec:scanner}
 The scanner splits the input into tokens.  The command «\verb|%ignore NAME|» tells the scanner to skip the
-tokens of the terminal \texttt{NAME}, e.g.~white space or comments.  The method \texttt{lex} runs only the
+tokens of the terminal \texttt{NAME}, e.g.~white space or comments.  Several terminals can be listed in one
+command, separated by commas, as in «\verb|%ignore WS, COMMENT|».  The method \texttt{lex} runs only the
 scanner, which is useful when a grammar does not work as expected.  Figure \ref{fig:lex.py} shows an example.
 \pythonfile{lex.py}{The program \texttt{lex.py} splits a string into tokens.}
 The method \texttt{lex} returns an iterator over the tokens.  Every token has a type, a value, a line, and a
@@ -366,13 +367,14 @@ If some literals should be removed from all alternatives of the grammar, the com
 colon) is used.  In the following example, the alternative has no head left.  As it is not a pass-through, the
 name of the rule becomes the head:
 \resultfile{shapes-ignore-global}
-Note that there are three different forms of «\verb|%ignore|»:
+The following table summarizes the different forms of «\verb|%ignore|»:
 \begin{center}
 \begin{tabular}{@{}l>{\raggedright\arraybackslash}p{10.3cm}@{}}
 \toprule
 \textbf{Form}                    & \textbf{Effect} \\
 \midrule
 «\verb|%ignore WS|»                & the scanner skips the tokens of the terminal \texttt{WS} \\
+«\verb|%ignore WS, COMMENT|»       & the scanner skips the tokens of both terminals \\
 «\verb|a: ... %ignore "(", ")"|»   & the literals are removed from the head of this alternative \\
 «\verb|%ignore: "(", ")"|»         & the literals are removed from the heads of all alternatives \\
 \bottomrule
@@ -722,7 +724,8 @@ A parser provides the following methods and attributes:
 \item «\verb|%import .file.NAME|» imports a rule or a terminal from the grammar \texttt{file.lark}, which is
       stored in the directory of the current grammar.
 \item «\verb|-> NEW_NAME|» at the end of an import renames the imported symbol.
-\item «\verb|%ignore NAME|» makes the scanner skip the terminal \texttt{NAME}.
+\item «\verb|%ignore NAME|» makes the scanner skip the terminal \texttt{NAME}.  Several terminals are
+      separated by commas: «\verb|%ignore A, B|».
 \item «\verb|%ignore "a", "b"|» at the end of an alternative removes these literals from its head, while
       «\verb|%ignore: "a", "b"|» removes them from all heads.
 \item «\verb|%declare NAME|» declares a terminal that is not defined in the grammar.
