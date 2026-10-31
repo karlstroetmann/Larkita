@@ -308,7 +308,10 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 * Larkita: `python3 -m tests` (65 tests) and `mypy larkita`.
 * Tutorial: `cd tutorial && make`.  The build must have no errors and no overfull boxes.  The only
   accepted warnings are the two hyperref warnings "Token not allowed in a PDF string", which come from
-  `\Lark` in the title of the subsection "Differences from Lark".
+  `\Lark` in the title of the subsection "Differences from Lark".  Grammars are set with the Pygments
+  lexer `tutorial/larkita_lexer.py`, an identical copy of the lexer in the lecture notes (see
+  `Lecture-Notes/CLAUDE.md` there).  minted only loads it if its SHA-256 hash is listed in
+  `~/.latexminted_config`; after a change of the lexer, update the hash and delete `tutorial/_minted`.
 * Lecture notes: run `pdflatex -shell-escape -interaction=nonstopmode formal-languages.tex` three
   times.  A clean build has 0 errors (`grep -c '^!' formal-languages.log`) and no "undefined" or
   "multiply defined" references.  Too wide `minted` listings produce no warnings, so check the PDF:
@@ -336,6 +339,8 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
   `conda run -n fl pip install -e <path of this directory>`.
 * Needed tools: TeX Live with `minted` 3 (and Pygments) and the `atkinson` fonts, `mypy`, poppler
   (`pdftotext`, `pdftoppm`), and ImageMagick (`montage`) for looking at several pages at once.
+* The tutorial and the lecture notes need `~/.latexminted_config` with the hash of the lexer for
+  grammars:  `{"custom_lexers": {"larkita_lexer.py": ["<shasum -a 256 tutorial/larkita_lexer.py>"]}}`.
 
 ### Releasing a new version on PyPI
 
