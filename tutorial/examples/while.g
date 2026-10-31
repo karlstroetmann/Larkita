@@ -28,8 +28,6 @@ factor: "(" expr ")"
 
 %ignore: "(", ")", "{", "}", ";"
 
-%import common.CNAME -> IDENTIFIER
-%import common.INT -> NUMBER
-%import common.CPP_COMMENT
-%import common.WS
+%import common.CNAME -> IDENTIFIER, common.INT -> NUMBER
+%import common.CPP_COMMENT, common.WS
 %ignore CPP_COMMENT, WS

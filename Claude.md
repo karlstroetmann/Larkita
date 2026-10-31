@@ -277,6 +277,14 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
    (clarification 9).  Released on 2026-10-31.  The interpreters of chapter 8, the table generators of
    chapter 10, and the listing of the interpreter's grammar in the lecture notes use it.  In
    chapter 13, the two `%ignore` directives stay apart, since each one is explained in its own cell.
+8. Version 0.4.0 allows a list after `%import`, e.g. `%import common.CNAME -> ID, common.INT, common.WS`;
+   every element has one of the forms of a single import.  The notebooks of chapters 7 and 8 and their
+   listings in the lecture notes use it.  In the tutorial, `while.g` uses both kinds of lists, while the
+   first example and the prelude of `shapes.py` keep one import per line, since the text explains the
+   lines one by one.  Version 0.4.0 also gives the messages for errors in grammars in every statement:
+   before, an error only matched the examples in `GRAMMAR_ERRORS` if it was in the first statement,
+   since the parser's stack must have the same height (`_GRAMMAR_ERRORS_IN_ALL_POSITIONS`).  A message
+   that names a token is only given for this token (`_TOKEN_SPECIFIC_ERRORS`).  Released on 2026-10-31.
 
 ### Constraints
 
@@ -293,7 +301,7 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 
 ### How to check the work
 
-* Larkita: `python3 -m tests` (56 tests) and `mypy larkita`.
+* Larkita: `python3 -m tests` (63 tests) and `mypy larkita`.
 * Tutorial: `cd tutorial && make`.  The build must have no errors and no overfull boxes.  The only
   accepted warnings are the two hyperref warnings "Token not allowed in a PDF string", which come from
   `\Lark` in the title of the subsection "Differences from Lark".

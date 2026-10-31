@@ -170,7 +170,8 @@ Larkita reads Lark grammars:
   reduce/reduce conflicts).
 * `%import common.NUMBER` imports terminals from Lark's standard library
   (`larkita/grammars/common.lark`), and `%import .file.rule` imports from a
-  grammar file next to the current one.  `-> NAME` renames an import.
+  grammar file next to the current one.  `-> NAME` renames an import.  Several
+  imports are separated by commas: `%import common.CNAME -> ID, common.INT, common.WS`.
 * `%declare`, `%extend` and `%override` work as in Lark.
 * `//` starts a comment.
 

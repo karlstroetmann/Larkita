@@ -169,9 +169,12 @@ RULES = {
     # %ignore: "(", ")"  --  literals that are ignored in the abstract syntax trees of all rules
     'ast_ignore': ['_IGNORE _COLON _literals _NL'],
     'declare': ['_DECLARE _declare_args _NL'],
-    'import': ['_IMPORT _import_path _NL',
-               '_IMPORT _import_path _LPAR name_list _RPAR _NL',
-               '_IMPORT _import_path _TO name _NL'],
+    # %import common.CNAME -> ID, common.WS  --  several imports in one line
+    'import': ['_IMPORT _import_list _NL'],
+    '_import_list': ['import_item', '_import_list _COMMA import_item'],
+    'import_item': ['_import_path',
+                    '_import_path _LPAR name_list _RPAR',
+                    '_import_path _TO name'],
 
     '_import_path': ['import_lib', 'import_rel'],
     'import_lib': ['_import_args'],
@@ -1007,7 +1010,7 @@ GRAMMAR_ERRORS = [
         # This error is found before the previous statement is complete, so the examples need it.
         ('Expecting rule or terminal definition', ['"a"\n', 'a: A\n"a"\n', 'A: "a"\n"a"\n',
                                                    '%import common.A\n"a"\n', '%ignore A\n"a"\n']),
-        ('%import expects a name', ['%import "a"\n']),
+        ('%import expects a name', ['%import "a"\n', '%import a.B, "a"\n', '%import a.B,\n']),
         ('%ignore expects a value', ['%ignore %import\n']),
         # Only the elements after the first comma can be recognized:  An error in the first element is
         # found in the same state as an error in an alternative of a rule.
@@ -1259,8 +1262,10 @@ class GrammarBuilder:
         imports: Dict[Tuple[str, ...], Tuple[Optional[str], Dict[str, str]]] = {}
 
         for stmt in tree.children:
-            if stmt.data == 'import':
-                dotted_path, base_path, aliases = self._unpack_import(stmt, grammar_name)
+            if stmt.data != 'import':
+                continue
+            for item in stmt.children:
+                dotted_path, base_path, aliases = self._unpack_import(item, grammar_name)
                 try:
                     import_base_path, import_aliases = imports[dotted_path]
                     assert base_path == import_base_path, 'Inconsistent base_path for %s.' % '.'.join(dotted_path)

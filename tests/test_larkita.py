@@ -219,6 +219,21 @@ class TestClarifications(LarkitaTestCase):
         g = 'a: NUMBER*\n%ignore /#[^\\n]*/, ";"\n'
         self.assertEqual(self.parse(g, '1; # one\n2'), ('a', ('NUMBER', '1'), ('NUMBER', '2')))
 
+    def test_list_of_imports(self):
+        g = 'a: (ID | INT)*\n%ignore WS\n'
+        out_file = os.path.join(self.tmpdir, 'grammar.out')
+        one_per_line = Larkita(g + '%import common.CNAME -> ID\n%import common.INT\n%import common.WS\n',
+                               out_file=out_file)
+        as_list = Larkita(g + '%import common.CNAME -> ID, common.INT, common.WS\n', out_file=out_file)
+        self.assertEqual(sorted((str(t.name), t.pattern) for t in as_list.terminals),
+                         sorted((str(t.name), t.pattern) for t in one_per_line.terminals))
+        self.assertEqual(as_list.parse('x 1'), ('a', ('ID', 'x'), ('INT', '1')))
+
+    def test_list_of_imports_with_a_multi_import(self):
+        g = 'a: (ID | INT)*\n%import common (INT, WS), common.CNAME -> ID\n%ignore WS\n'
+        parser = Larkita(g, out_file=os.path.join(self.tmpdir, 'grammar.out'))
+        self.assertEqual(parser.parse('x 1'), ('a', ('ID', 'x'), ('INT', '1')))
+
     def test_start_symbol(self):
         g = 'a: b ";"\nb: NUMBER'
         self.assertEqual(self.make(g).start, 'a')

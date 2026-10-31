@@ -263,7 +263,10 @@ They are imported with «\verb|%import common.NAME|».  The command
 \hspace*{1.3cm}
 \verb|%import common.NAME -> NEW_NAME|
 \\[0.2cm]
-also renames the terminal.
+also renames the terminal.  Several imports can be combined in one command, separated by commas:
+\\[0.2cm]
+\hspace*{1.3cm}
+\verb|%import common.CNAME -> NAME, common.INT, common.WS|
 
 \subsection{The scanner}
 \label{sec:scanner}
@@ -723,7 +726,8 @@ A parser provides the following methods and attributes:
 \item «\verb|%import common.NAME|» imports a terminal from the library \texttt{common.lark}.
 \item «\verb|%import .file.NAME|» imports a rule or a terminal from the grammar \texttt{file.lark}, which is
       stored in the directory of the current grammar.
-\item «\verb|-> NEW_NAME|» at the end of an import renames the imported symbol.
+\item «\verb|-> NEW_NAME|» at the end of an import renames the imported symbol.  Several imports are separated
+      by commas: «\verb|%import common.A -> B, common.C|».
 \item «\verb|%ignore NAME|» makes the scanner skip the terminal \texttt{NAME}.  Several terminals are
       separated by commas: «\verb|%ignore A, B|».
 \item «\verb|%ignore "a", "b"|» at the end of an alternative removes these literals from its head, while
