@@ -104,15 +104,11 @@ generator:  IDENTIFIER "in" expr
 
         
 // Lexical definitions
-%import common.CNAME -> IDENTIFIER
-%import common.WS
+%import common.CNAME -> IDENTIFIER, common.WS, common.CPP_COMMENT, common.C_COMMENT
 
 FLOAT:  /[0-9](_?[0-9])*\.[0-9](_?[0-9])*([eE][+-]?[0-9]+)?/
 NUMBER: /[0-9](_?[0-9])*/
 STRING: /"(\\.|[^"\\])*"/
-
-CPP_COMMENT: /\/\/[^\n]*/
-C_COMMENT:   "/*" /(.|\n)*?/ "*/"
 
 // Ignore whitespace and comments
 %ignore WS
