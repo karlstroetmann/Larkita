@@ -29,6 +29,12 @@ Documentation = "https://github.com/karlstroetmann/Larkita/blob/master/tutorial/
 [project.optional-dependencies]
 regex = ["regex"]
 interegular = ["interegular>=0.3.1,<0.4.0"]
+pygments = ["pygments"]
+
+# The lexers for highlighting grammars, e.g. with pygmentize -l larkita or IPython.display.Code
+[project.entry-points."pygments.lexers"]
+larkita = "larkita.pygments_lexer:LarkitaLexer"
+python-larkita = "larkita.pygments_lexer:PythonLarkitaLexer"
 
 [tool.setuptools]
 packages = [

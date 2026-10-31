@@ -218,6 +218,9 @@ The following points make the rules above precise.
   contextual lexer.
 * `larkita/tree.py`, `larkita/visitors.py`, `larkita/parse_tree_builder.py`: internal, used to
   parse grammar files only.
+* `larkita/pygments_lexer.py`: the Pygments lexers `larkita` and `python-larkita`, registered as plugins
+  in `pyproject.toml`.  `tutorial/larkita_lexer.py` and `Lecture-Notes/larkita_lexer.py` in the course are
+  copies of these classes for minted (only the docstrings differ); keep the classes identical.
 * `tests/test_larkita.py`: the tests (`python3 -m tests`).
 * `tutorial/`: the LaTeX tutorial (see below).
 
@@ -289,6 +292,15 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
    defined" independent of the hash seed:  `_find_used_symbols` returns the names in the order of their
    first occurrence instead of a set, so the first undefined name is reported, and the undefined
    terminals after `%ignore` are listed in the order in which they are written.  Released on 2026-10-31.
+10. The grammar files of chapters 9 and 10 (`Python/Chapter-09/*.g`, `Python/Chapter-10/Examples/*.g`)
+    are written in Larkita's notation since 2026-10-31:  literals in double quotes, alternatives separated
+    by `|`, and no semicolons.  The grammars for grammars in `Earley-Parser.ipynb`,
+    `LR-Table-Generator.ipynb`, and `SLR-Table-Generator.ipynb` recognize a variable that is followed by a
+    colon as the token `RULE_NAME.2` (with the lookahead `(?=[ \t]*:)`), since an LR(1) parser cannot tell
+    otherwise where a rule ends.  Every file yields the same rules as before.
+11. Version 0.5.0 adds the Pygments lexers in `larkita/pygments_lexer.py`.  The notebooks of chapters 9
+    and 10 display the grammar files with `display(Code(text, language='larkita'))`.  Released on
+    2026-10-31.
 
 ### Constraints
 
@@ -305,7 +317,8 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 
 ### How to check the work
 
-* Larkita: `python3 -m tests` (65 tests) and `mypy larkita`.
+* Larkita: `python3 -m tests` (68 tests; the 3 tests of the lexers are skipped without Pygments) and
+  `mypy larkita`, which needs the stubs `types-Pygments`.
 * Tutorial: `cd tutorial && make`.  The build must have no errors and no overfull boxes.  The only
   accepted warnings are the two hyperref warnings "Token not allowed in a PDF string", which come from
   `\Lark` in the title of the subsection "Differences from Lark".  Grammars are set with the Pygments
@@ -336,8 +349,11 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
   installed from GitHub with
   `conda run -n fl pip install --upgrade --force-reinstall git+https://github.com/karlstroetmann/Larkita.git`.
   On the home computer, Larkita is installed in editable mode instead:
-  `conda run -n fl pip install -e <path of this directory>`.
-* Needed tools: TeX Live with `minted` 3 (and Pygments) and the `atkinson` fonts, `mypy`, poppler
+  `conda run -n fl pip install -e <path of this directory>`.  The plugins for Pygments are only
+  registered when Larkita is installed, so run this command again after a change of the entry points in
+  `pyproject.toml`.
+* Needed tools: TeX Live with `minted` 3 (and Pygments) and the `atkinson` fonts, `mypy` with
+  `types-Pygments`, poppler
   (`pdftotext`, `pdftoppm`), and ImageMagick (`montage`) for looking at several pages at once.
 * The tutorial and the lecture notes need `~/.latexminted_config` with the hash of the lexer for
   grammars:  `{"custom_lexers": {"larkita_lexer.py": ["<shasum -a 256 tutorial/larkita_lexer.py>"]}}`.

@@ -273,6 +273,19 @@ tokens are skipped.
 After construction, `parser.conflicts`, `parser.rules`, `parser.terminals`,
 `parser.parse_table` and `parser.out_file` describe the generated parser.
 
+### Highlighting grammars
+
+Larkita registers two lexers for [Pygments](https://pygments.org): `larkita` for
+grammars and `python-larkita` for Python code whose raw strings `r"""..."""` are
+grammars.  They need Pygments, e.g. `pip install larkita[pygments]`:
+
+```
+pygmentize -l larkita grammar.g
+```
+
+In Jupyter, `IPython.display.Code(text, language='larkita')` displays a grammar
+with syntax highlighting.
+
 ## Examples and tests
 
 The directory `new-syntax` of the repository contains two example grammars:

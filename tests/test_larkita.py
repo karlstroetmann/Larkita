@@ -556,5 +556,57 @@ class TestExampleGrammars(LarkitaTestCase):
                                       (',', ('neg', ('IDENTIFIER', 's')), ('FLOAT', '2.5'), ('STRING', '"a"')))))
 
 
+try:
+    import pygments
+except ImportError:
+    pygments = None
+
+
+@unittest.skipUnless(pygments, 'Pygments is not installed')
+class TestPygmentsLexer(unittest.TestCase):
+    "The lexers for highlighting grammars in larkita/pygments_lexer.py"
+
+    def tokens(self, lexer, text):
+        from pygments.token import Error
+        tokens = [(t, v) for t, v in lexer.get_tokens(text) if v.strip()]
+        self.assertEqual([v for t, v in tokens if t in Error], [])
+        return tokens
+
+    def test_grammar(self):
+        from pygments.token import Comment, Keyword, Name, String
+        from larkita.pygments_lexer import LarkitaLexer
+        g = ('expr: expr "+" NUMBER    -> "plus"   // a comment\n'
+             '    | NUMBER\n'
+             'COMMENT: /#[^\\n]*/\n'
+             '%import common.NUMBER, common.WS\n'
+             '%ignore WS, COMMENT\n')
+        tokens = self.tokens(LarkitaLexer(), g)
+        self.assertEqual(tokens[0], (Name.Function, 'expr'))
+        for expected in [(String, '"+"'), (Name.Variable, 'NUMBER'), (Name.Label, '"plus"'),
+                         (Comment.Single, '// a comment'), (String.Regex, '/#[^\\n]*/'),
+                         (Name.Variable, 'COMMENT'), (Keyword.Namespace, '%import'), (Keyword.Namespace, '%ignore')]:
+            self.assertIn(expected, tokens)
+
+    def test_python_with_grammar(self):
+        from pygments.token import Name, String
+        from larkita.pygments_lexer import PythonLarkitaLexer
+        code = 'parser = Larkita(r"""\nstart: A+\nA: "a"\n""")\n'
+        tokens = self.tokens(PythonLarkitaLexer(), code)
+        self.assertEqual(tokens[0], (Name, 'parser'))
+        for expected in [(Name.Function, 'start'), (Name.Variable, 'A'), (String, '"a"')]:
+            self.assertIn(expected, tokens)
+
+    def test_entry_points(self):
+        import tomllib
+        from larkita import pygments_lexer
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, 'pyproject.toml'), 'rb') as handle:
+            entry_points = tomllib.load(handle)['project']['entry-points']['pygments.lexers']
+        for name, target in entry_points.items():
+            module, class_name = target.split(':')
+            self.assertEqual(module, 'larkita.pygments_lexer')
+            self.assertIn(name, getattr(pygments_lexer, class_name).aliases)
+
+
 if __name__ == '__main__':
     unittest.main()

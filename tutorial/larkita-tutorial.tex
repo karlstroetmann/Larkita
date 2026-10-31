@@ -739,6 +739,22 @@ A parser provides the following methods and attributes:
 \item «\verb|%override|» and «\verb|%extend|» replace or extend a rule or a terminal that has been imported.
 \end{itemize}
 
+\subsection{Highlighting grammars}
+\Larkita\ registers two lexers for \href{https://pygments.org}{Pygments}:  «\verb|larkita|» for grammars and
+«\verb|python-larkita|» for \textsl{Python} code in which the raw strings «\verb|r"""..."""|» are grammars.  For
+example, the command
+\\[0.2cm]
+\hspace*{1.3cm}
+\verb|pygmentize -l larkita while.g|
+\\[0.2cm]
+prints the grammar \texttt{while.g} in color.  In a Jupyter notebook, the command
+\\[0.2cm]
+\hspace*{1.3cm}
+\verb|display(Code(text, language='larkita'))|
+\\[0.2cm]
+displays the grammar \texttt{text} with syntax highlighting, where \texttt{Code} and \texttt{display} are imported
+from the module \texttt{IPython.display}.  The grammars in this tutorial are highlighted by the same lexer.
+
 \subsection{Exceptions and warnings}
 \begin{center}
 \begin{tabular}{l>{\raggedright\arraybackslash}p{11cm}}
