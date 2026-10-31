@@ -285,6 +285,10 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
    before, an error only matched the examples in `GRAMMAR_ERRORS` if it was in the first statement,
    since the parser's stack must have the same height (`_GRAMMAR_ERRORS_IN_ALL_POSITIONS`).  A message
    that names a token is only given for this token (`_TOKEN_SPECIFIC_ERRORS`).  Released on 2026-10-31.
+9. Version 0.4.1 makes the messages "used but not defined" and "were marked to ignore but were not
+   defined" independent of the hash seed:  `_find_used_symbols` returns the names in the order of their
+   first occurrence instead of a set, so the first undefined name is reported, and the undefined
+   terminals after `%ignore` are listed in the order in which they are written.  Released on 2026-10-31.
 
 ### Constraints
 
@@ -301,7 +305,7 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 
 ### How to check the work
 
-* Larkita: `python3 -m tests` (63 tests) and `mypy larkita`.
+* Larkita: `python3 -m tests` (65 tests) and `mypy larkita`.
 * Tutorial: `cd tutorial && make`.  The build must have no errors and no overfull boxes.  The only
   accepted warnings are the two hyperref warnings "Token not allowed in a PDF string", which come from
   `\Lark` in the title of the subsection "Differences from Lark".

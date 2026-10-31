@@ -972,9 +972,10 @@ class PrepareGrammar(Transformer_InPlace):
 
 
 def _find_used_symbols(tree):
+    "Returns the names of the symbols in the order of their first occurrence, so that errors are reproducible"
     assert tree.data == 'expansions'
-    return {t.name for x in tree.find_data('expansion')
-            for t in x.scan_values(lambda t: isinstance(t, Symbol))}
+    return list(dict.fromkeys(t.name for x in tree.iter_subtrees_topdown() if x.data == 'expansion'
+                              for t in x.scan_values(lambda t: isinstance(t, Symbol))))
 
 
 def _get_parser():
@@ -1381,8 +1382,10 @@ class GrammarBuilder:
                 if sym not in self._definitions:
                     self._grammar_error(d.is_term, "{Type} '{name}' used but not defined (in {type2} {name2})", sym, name)
 
-        if not set(self._definitions).issuperset(self._ignore_names):
-            raise GrammarError("Terminals %s were marked to ignore but were not defined!" % (set(self._ignore_names) - set(self._definitions)))
+        undefined = [name for name in dict.fromkeys(self._ignore_names) if name not in self._definitions]
+        if undefined:
+            raise GrammarError("Terminals {%s} were marked to ignore but were not defined!"
+                               % ', '.join(map(repr, undefined)))
 
     def build(self) -> Grammar:
         self.validate()

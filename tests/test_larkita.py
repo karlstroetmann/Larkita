@@ -487,6 +487,14 @@ class TestErrors(LarkitaTestCase):
         with self.assertRaises(GrammarError):
             self.make('a: b')
 
+    def test_first_undefined_symbol_is_reported(self):
+        with self.assertRaisesRegex(GrammarError, "'alpha' used but not defined"):
+            self.make('a: (alpha | beta) gamma delta epsilon zeta eta theta')
+
+    def test_undefined_ignored_terminals_are_listed_in_order(self):
+        with self.assertRaisesRegex(GrammarError, re.escape("Terminals {'DELTA', 'BETA', 'GAMMA'} were marked")):
+            self.make('a: NUMBER\n%ignore DELTA, BETA, GAMMA\n')
+
     def test_error_messages_do_not_depend_on_the_position(self):
         for message, examples in GRAMMAR_ERRORS:
             for example in examples:
