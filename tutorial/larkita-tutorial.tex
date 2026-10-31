@@ -417,7 +417,8 @@ program: stmnt*
 ret: "return" [expr] ";"
     ⇒ (('return', ';'),)  or  (('return', ';'), ast(expr))
 expr: expr ("+" | "-") product
-    ⇒ ('+', ast(expr), ast(product))  or  ('-', ast(expr), ast(product))
+    ⇒ ('+', ast(expr), ast(product))  or
+      ('-', ast(expr), ast(product))
 expr: product (("+" | "-") product)*
     ⇒ ('expr', ast(product_1), '-', ast(product_2), ...)
 \end{minted}
