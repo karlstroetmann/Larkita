@@ -98,8 +98,9 @@ class Larkita:
                                             for c in unresolved)))
         shift_reduce = [c for c in self.conflicts if c.shift_state is not None]
         if shift_reduce:
+            # The warning refers to the first line outside of Larkita, also when Larkita.open is called.
             warnings.warn("%d shift/reduce conflict(s) were resolved as shift, see %s" % (len(shift_reduce), out_file),
-                          ConflictWarning, stacklevel=2)
+                          ConflictWarning, skip_file_prefixes=(os.path.dirname(__file__),))
 
         self.parser = ParsingFrontend(self.lexer_conf, self.parse_table, create_callbacks(self.rules), lexer)
         self._basic_lexer: Optional[BasicLexer] = None

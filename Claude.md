@@ -301,6 +301,14 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 11. Version 0.5.0 adds the Pygments lexers in `larkita/pygments_lexer.py`.  The notebooks of chapters 9
     and 10 display the grammar files with `display(Code(text, language='larkita'))`.  Released on
     2026-10-31.
+12. The notebooks of chapters 7, 8, 11, and 13 no longer contain their grammars as strings:  Every grammar
+    is stored in a `.lark` file next to its notebook (chapter 13: `Python/Chapter-13/Grammar/*.lark`, one
+    file per piece that the notebook explains), which the notebook displays with
+    `Code(filename=..., language='larkita')` and loads with `Larkita.open` (chapter 13 joins the pieces
+    with its function `read_grammar`).  The grammar of the exercise solution, `Chapter-08/sl-solution.lark`,
+    is listed in `Python/Chapter-08/.gitignore`.  The listings of these grammars in the lecture notes show
+    the contents of the files.  Version 0.5.1 makes the `ConflictWarning` refer to the first line outside of
+    Larkita (`skip_file_prefixes`); with `stacklevel=2`, the warning pointed into `Larkita.open`.
 
 ### Constraints
 
@@ -317,7 +325,7 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 
 ### How to check the work
 
-* Larkita: `python3 -m tests` (68 tests; the 3 tests of the lexers are skipped without Pygments) and
+* Larkita: `python3 -m tests` (69 tests; the 3 tests of the lexers are skipped without Pygments) and
   `mypy larkita`, which needs the stubs `types-Pygments`.
 * Tutorial: `cd tutorial && make`.  The build must have no errors and no overfull boxes.  The only
   accepted warnings are the two hyperref warnings "Token not allowed in a PDF string", which come from

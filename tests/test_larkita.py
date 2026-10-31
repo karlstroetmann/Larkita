@@ -292,6 +292,17 @@ class TestLR1(LarkitaTestCase):
                          (('if', 'then'), ('NUMBER', '1'),
                           (('if', 'then', 'else'), ('NUMBER', '2'), ('NUMBER', '3'), ('NUMBER', '4'))))
 
+    def test_conflict_warning_refers_to_the_caller(self):
+        g = 'stmt: "if" NUMBER "then" stmt | "if" NUMBER "then" stmt "else" stmt | NUMBER' + LEXICAL
+        path = os.path.join(self.tmpdir, 'dangling.lark')
+        with open(path, 'w') as handle:
+            handle.write(g)
+        out_file = os.path.join(self.tmpdir, 'grammar.out')
+        for create in [lambda: Larkita(g, out_file=out_file), lambda: Larkita.open(path, out_file=out_file)]:
+            with self.assertWarns(ConflictWarning) as cm:
+                create()
+            self.assertEqual(cm.filename, __file__)
+
     def test_reduce_reduce_conflict_is_an_error(self):
         g = 'a: b | c\nb: NUMBER\nc: NUMBER'
         out_file = os.path.join(self.tmpdir, 'conflict.out')
