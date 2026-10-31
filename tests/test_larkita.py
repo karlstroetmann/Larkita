@@ -1,10 +1,12 @@
 import os
+import re
 import shutil
 import tempfile
 import unittest
 import warnings
 
 from larkita import (Larkita, GrammarError, ConflictWarning, UnexpectedToken, UnexpectedCharacters)
+from larkita.load_grammar import GRAMMAR_ERRORS
 from larkita.lr_analysis import LR1Analyzer
 
 EXAMPLES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'new-syntax')
@@ -470,12 +472,30 @@ class TestErrors(LarkitaTestCase):
         with self.assertRaises(GrammarError):
             self.make('a: b')
 
+    def test_error_messages_do_not_depend_on_the_position(self):
+        for message, examples in GRAMMAR_ERRORS:
+            for example in examples:
+                for before in ['', 'a: B\nB: "b"\n', 'B: "b"\na: B\n', 'a: B\n%import common.WS\n']:
+                    with self.subTest(example=example, before=before):
+                        with self.assertRaisesRegex(GrammarError, re.escape(message)):
+                            Larkita(before + example, out_file=os.path.join(self.tmpdir, 'grammar.out'))
+
+    def test_messages_naming_a_token_are_only_given_for_this_token(self):
+        for grammar in ['a: B\nB: "b"\nc: B %import\n', 'c: B, B\nB: "b"\n']:
+            with self.assertRaises(GrammarError) as cm:
+                self.make(grammar)
+            self.assertIn('Expecting a value', str(cm.exception))
+
     def test_alternatives_in_list_of_ignored_terminals_are_rejected(self):
         g = 'a: NUMBER*\nB: "b"\nC: "c"\nD: "d"\n'
-        for ignore in ['%ignore B | C, D', '%ignore B, C | D', '%ignore B, C -> x']:
+        for ignore in ['%ignore B, C | D', '%ignore B, C -> x', '%ignore B, C, D\n    | A']:
             for grammar in [g + ignore, ignore + '\n' + g]:
                 with self.assertRaisesRegex(GrammarError, 'cannot contain'):
                     self.make(grammar)
+        # An error in the first element cannot be told apart from an error in an alternative of a rule.
+        for ignore in ['%ignore B | C, D', '%ignore B -> x, C']:
+            with self.assertRaises((GrammarError, UnexpectedToken)):
+                self.make(g + ignore)
 
 
 class TestExampleGrammars(LarkitaTestCase):

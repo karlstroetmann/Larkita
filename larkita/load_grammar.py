@@ -1004,19 +1004,36 @@ GRAMMAR_ERRORS = [
         ('Misplaced operator', ['a: b??', 'a: b(?)', 'a:+\n', 'a:?\n', 'a:*\n', 'a:|*\n']),
         ('Expecting option ("|") or a new rule or terminal definition', ['a:a\n()\n']),
         ('Terminal names cannot contain dots', ['A.B\n']),
-        ('Expecting rule or terminal definition', ['"a"\n']),
+        # This error is found before the previous statement is complete, so the examples need it.
+        ('Expecting rule or terminal definition', ['"a"\n', 'a: A\n"a"\n', 'A: "a"\n"a"\n',
+                                                   '%import common.A\n"a"\n', '%ignore A\n"a"\n']),
         ('%import expects a name', ['%import "a"\n']),
         ('%ignore expects a value', ['%ignore %import\n']),
-        # Every example is given as the first statement and after another one, since the error is only
-        # recognized if the parser's stack has the same height.
+        # Only the elements after the first comma can be recognized:  An error in the first element is
+        # found in the same state as an error in an alternative of a rule.
         ('The elements of a list after %ignore cannot contain "|" or "->"',
-         [first + example for first in ('', 'A: "a"\n')
-          for example in ('%ignore A | B, C\n', '%ignore A -> b, C\n', '%ignore A, B | C\n',
-                          '%ignore A, B -> c\n', '%ignore A, B, C | D\n', '%ignore A, B, C -> d\n')]),
+         ['%ignore A, B | C\n', '%ignore A, B -> c\n', '%ignore A, B, C | D\n', '%ignore A, B, C -> d\n']),
     ]
 
+# An error only matches an example if the parser's stack has the same height.  The stack is one symbol
+# higher after the first statement of a grammar, so every example is also tried after another statement.
+_GRAMMAR_ERRORS_IN_ALL_POSITIONS = [
+    (label, [first + example for example in examples for first in ('', 'A: "a"\n')])
+    for label, examples in GRAMMAR_ERRORS]
+
+# These messages name the token that is wrong, so they are only given for tokens of these types.
+_TOKEN_SPECIFIC_ERRORS = {
+    'Incorrect type of value':       {'NUMBER'},
+    'Unmatched closing parenthesis': {'_RPAR', '_RBRA'},
+    'Unexpected colon':              {'_COLON'},
+    'Misplaced operator':            {'OP'},
+    'The elements of a list after %ignore cannot contain "|" or "->"': {'_OR', '_NL_OR', '_TO'},
+}
+
 def _translate_parser_exception(parse, e):
-        error = e.match_examples(parse, GRAMMAR_ERRORS)
+        examples = [(label, examples) for label, examples in _GRAMMAR_ERRORS_IN_ALL_POSITIONS
+                    if e.token.type in _TOKEN_SPECIFIC_ERRORS.get(label, {e.token.type})]
+        error = e.match_examples(parse, examples)
         if error:
             return error
         elif 'STRING' in e.expected:
