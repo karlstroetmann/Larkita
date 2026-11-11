@@ -115,7 +115,8 @@
       Every item of a state is annotated with its look-ahead tokens.
 \end{enumerate}
 Grammars are written in the EBNF notation of \Lark, with a few additions that control the shape of the
-abstract syntax trees.
+abstract syntax trees.  Furthermore, the precedence and the associativity of operators can be declared as in
+the parser generator \href{https://www.gnu.org/software/bison/}{\textsl{Bison}}.
 
 \subsection{Installation}
 \Larkita\ is written in pure \textsl{Python} and needs no other packages.  It can be installed from
@@ -530,8 +531,8 @@ abstract syntax tree that a reduction with this rule produces:
 \resultfile[\small]{expr-rules}
 Rule (0) is added by \Larkita: Its left hand side is the new start symbol «\verb|$root_stmnt|».  If the grammar
 uses operators like «\verb|*|» or «\verb|?|», the list contains the auxiliary rules that \Larkita\ has introduced
-for them.  Then the file lists the conflicts of the grammar, if there are any.  Finally, it describes all
-states of the parser.  For example, state 2 is the state that the parser enters after it has read an
+for them.  Then the file lists the precedence declarations, if there are any (see Section
+\ref{sec:precedence}), and the conflicts of the grammar.  Finally, it describes all states of the parser.  For example, state 2 is the state that the parser enters after it has read an
 identifier at the beginning of a statement:
 \resultfile[\small]{expr-state}
 \begin{itemize}
@@ -564,8 +565,9 @@ The grammar \texttt{dangling.g} in Figure \ref{fig:dangling.g} describes nested 
 suffers from the \blue{dangling else problem}:  In a statement like «\verb|if (a) if (b) x; else y;|» it is not
 clear whether the «\verb|else|» belongs to the first or to the second «\verb|if|».
 \grammarfile{dangling.g}{The grammar \texttt{dangling.g} has a shift/reduce conflict.}
-\Larkita\ resolves shift/reduce conflicts in favour of shifting.  In addition, it issues a warning of the
-class \texttt{ConflictWarning}.  The program \texttt{dangling.py} in Figure \ref{fig:dangling.py} catches
+Unless a shift/reduce conflict is resolved by precedence declarations (see Section \ref{sec:precedence}),
+\Larkita\ resolves it in favour of shifting.  In addition, it issues a warning of the class
+\texttt{ConflictWarning}.  The program \texttt{dangling.py} in Figure \ref{fig:dangling.py} catches
 this warning and prints it:
 \pythonfile{dangling.py}{The program \texttt{dangling.py} catches the warning about the conflict.}
 \resultfile[\small]{dangling}
@@ -586,6 +588,83 @@ warnings.simplefilter('error', ConflictWarning)
 \end{unbreakable}
 turns these warnings into exceptions, so that every shift/reduce conflict is reported as an error, while
 «\verb|warnings.simplefilter('ignore', ConflictWarning)|» suppresses them.
+
+\subsection{Precedence and associativity}
+\label{sec:precedence}
+The grammar \texttt{expr.g} in Figure \ref{fig:expr.g} needs three syntactical variables, \texttt{expr},
+\texttt{product}, and \texttt{factor}, to express that «\verb|*|» binds more strongly than «\verb|+|» and that
+both operators are left-associative.  The ambiguous rule
+\\[0.2cm]
+\hspace*{1.3cm}
+\verb!expr: expr ("+" | "*") expr | NUMBER!
+\\[0.2cm]
+is shorter, but it has shift/reduce conflicts:  After reading «\verb|1 + 2|», the parser cannot decide whether
+it should reduce «\verb|1 + 2|» to an expression or shift the next operator.  If these conflicts are resolved
+in favour of shifting, all operators are right-associative and have the same precedence, so
+«\verb|1 * 2 + 3|» is parsed as «\verb|1 * (2 + 3)|».  Like \textsl{Bison}, \Larkita\ resolves such conflicts
+with \blue{precedence declarations}.  The grammar \texttt{precedence.g} in Figure \ref{fig:precedence.g} uses
+them for six binary operators and the unary minus.
+\grammarfile{precedence.g}{The grammar \texttt{precedence.g} declares the precedence of its operators.}
+\begin{itemize}
+\item Every declaration in lines 4 -- 8 lists literals and terminals, which may be separated by commas.  The
+      symbols of a declaration have the same \blue{precedence}, which is higher than the precedence of the
+      symbols declared above them.  Hence, «\verb|^|» has the highest precedence, while «\verb|<|» and
+      «\verb|==|» have the lowest.
+\item The keyword of a declaration specifies the \blue{associativity} of its symbols:  «\verb|%left|» makes them
+      left-associative, so «\verb|1 - 2 - 3|» means «\verb|(1 - 2) - 3|», and «\verb|%right|» makes them
+      right-associative, so «\verb|2 ^ 3 ^ 2|» means «\verb|2 ^ (3 ^ 2)|».  «\verb|%nonassoc|» makes them
+      non-associative:  «\verb|1 < 2 < 3|» is a syntax error.  «\verb|%precedence|» declares a precedence without
+      an associativity.
+\item A rule has the precedence of its last terminal.  For example, the alternative «\verb|expr "+" expr|» has
+      the precedence of «\verb|+|».  An annotation «\verb|%prec NAME|» at the end of an alternative gives it the
+      precedence of \texttt{NAME} instead.  This annotation has to precede an alias or an «\verb|%ignore|»
+      annotation.  The unary minus in line 11 should bind more strongly than «\verb|*|» and «\verb|/|», but
+      less strongly than «\verb|^|», so that «\verb|-2 ^ 2|» means «\verb|-(2 ^ 2)|», as usual in mathematics.
+      Without the annotation, the alternative would have the precedence of the literal «\verb|-|», which is
+      lower than the precedence of «\verb|*|».  Therefore, it gets the precedence of \texttt{UMINUS}, which is
+      declared in line 7.  \texttt{UMINUS} is not a terminal:  It is only a name for a precedence that is
+      used after «\verb|%prec|».
+\end{itemize}
+If the parser could either reduce with a rule or shift a token, and both the rule and the token have a
+precedence, the conflict is resolved as follows:
+\begin{enumerate}
+\item If the token has a higher precedence than the rule, the token is shifted.
+\item If the rule has a higher precedence than the token, the parser reduces with the rule.
+\item If both have the same precedence, the associativity decides:  For «\verb|%left|», the parser reduces,
+      for «\verb|%right|», it shifts, and for «\verb|%nonassoc|», the token is a syntax error.  Symbols that
+      have been declared with «\verb|%precedence|» have no associativity, so the conflict is not resolved.
+\end{enumerate}
+All other shift/reduce conflicts are resolved in favour of shifting and reported with a warning, as
+explained above.  Precedence declarations have no effect on reduce/reduce conflicts.  Precedence
+declarations in imported grammars are ignored.  The program \texttt{precedence.py} in Figure
+\ref{fig:precedence.py} parses some expressions:
+\pythonfile{precedence.py}{The program \texttt{precedence.py} parses expressions with the grammar
+  \texttt{precedence.g}.}
+\resultfile[\small]{precedence}
+The grammar has 112 shift/reduce conflicts, but all of them have been resolved by the precedence
+declarations, so there is no warning.  The conflicts occur twice in the canonical LR(1) automaton:  once in
+the states for expressions at the top level and once in the states for expressions in parentheses, whose
+look-ahead sets contain \verb|")"| instead of «\verb|$END|».  With «\verb|merge_states=True|», these states
+are merged, which reduces the number of states from 42 to 22.
+
+The output file \texttt{precedence.out} lists the precedence declarations together with the precedences of
+the rules:
+\resultfile[\small]{precedence-section}
+Every conflict is listed together with the reason for its resolution, which is written as in \textsl{Bison}.
+For example, the parser reaches state 19, which is shown below, after reading «\verb|1 + 2|».  In this state,
+the conflicts are resolved as follows:
+\begin{itemize}
+\item The token «\verb|*|» has a higher precedence than the token «\verb|+|», which gives rule (3) its
+      precedence.  This is written as «\verb|("+" < "*")|».  Therefore, «\verb|*|» is shifted, so that
+      «\verb|2 * 3|» is reduced first.
+\item The tokens «\verb|+|» and «\verb|-|» have the same precedence as rule (3).  As they are left-associative,
+      the parser reduces.
+\item The token «\verb|<|» has a lower precedence than rule (3), so the parser reduces, too.
+\end{itemize}
+\resultfile[\small]{precedence-state}
+In the state that the parser reaches after reading «\verb|1 < 2|», the action for the tokens «\verb|<|» and
+«\verb|==|» is «\verb|error (nonassociative)|».  The scanner still reads these tokens, but the parser reports
+them as unexpected.
 
 \subsection{Reduce/reduce conflicts}
 \Larkita\ treats reduce/reduce conflicts as errors: It raises a \texttt{GrammarError}.  The grammar
@@ -735,6 +814,11 @@ A parser provides the following methods and attributes:
       separated by commas: «\verb|%ignore A, B|».
 \item «\verb|%ignore "a", "b"|» at the end of an alternative removes these literals from its head, while
       «\verb|%ignore: "a", "b"|» removes them from all heads.
+\item «\verb|%left "+" "-"|», «\verb|%right|», «\verb|%nonassoc|», and «\verb|%precedence|» declare the
+      precedence and the associativity of literals and terminals.  Every declaration has a higher precedence
+      than the declarations above it (see Section \ref{sec:precedence}).
+\item «\verb|%prec NAME|» at the end of an alternative, but in front of an alias or «\verb|%ignore|», gives
+      the alternative the precedence of \texttt{NAME}.
 \item «\verb|%declare NAME|» declares a terminal that is not defined in the grammar.
 \item «\verb|%override|» and «\verb|%extend|» replace or extend a rule or a terminal that has been imported.
 \end{itemize}
@@ -766,7 +850,8 @@ from the module \texttt{IPython.display}.  The grammars in this tutorial are hig
 \texttt{UnexpectedInput}        & the base class of \texttt{UnexpectedCharacters} and \texttt{UnexpectedToken} \\
 \texttt{UnexpectedCharacters}   & no terminal matches the input \\
 \texttt{UnexpectedToken}        & the parser cannot accept the next token \\
-\texttt{ConflictWarning}        & a shift/reduce conflict has been resolved as shift \\
+\texttt{ConflictWarning}        & a shift/reduce conflict that is not resolved by precedence declarations has
+                                  been resolved as shift \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -782,8 +867,8 @@ Readers who know \Lark\ should note the following differences:
 \item Aliases and «\verb|%ignore|» after an alternative and «\verb|%ignore:|» control the heads of the tuples.
 \item Grammar templates, post-lexers like the \texttt{Indenter}, lexer callbacks, the interactive parser,
       and caching are not supported.
-\item Shift/reduce conflicts are resolved as shift with a warning, and every parser comes with an output file
-      that describes the LR(1) automaton.
+\item Shift/reduce conflicts are resolved by precedence declarations as in \textsl{Bison}, or else as shift
+      with a warning.  Every parser comes with an output file that describes the LR(1) automaton.
 \item By default, the states of the canonical LR(1) automaton are not merged.  If the option
       «\verb|merge_states=True|» is given, states with the same core are merged as far as this is safe.
 \end{itemize}

@@ -4,8 +4,12 @@ The automaton is built with Knuth's construction: a state is a set of LR(1) item
 rules annotated with a set of lookahead tokens.  Two states are only identified if they agree in
 all items *and* all lookaheads, so (unlike LALR) no conflicts are introduced by merging states.
 
-Shift/reduce conflicts are resolved in favour of shift.  Reduce/reduce conflicts are resolved in
-favour of the rule with the highest priority; if there is no such rule, the conflict is an error.
+Shift/reduce conflicts are resolved by the precedence declarations as in bison:  A rule has the
+precedence of the symbol given by %prec, or else of its last terminal.  If both the rule and the
+look-ahead token have a precedence, the higher precedence wins; if they are equal, the associativity
+decides (%left: reduce, %right: shift, %nonassoc: syntax error).  All other shift/reduce conflicts
+are resolved in favour of shift.  Reduce/reduce conflicts are resolved in favour of the rule with the
+highest priority; if there is no such rule, the conflict is an error.
 
 Optionally, states with the same core are merged afterwards, as long as this does not introduce
 new conflicts.  For an LALR(1) grammar the result is the LALR(1) automaton.
@@ -29,14 +33,16 @@ class Action:
 
 Shift = Action('Shift')
 Reduce = Action('Reduce')
+Error = Action('Error')
 
 
 class ParseTable:
     """The action and goto table.
 
-    ``states[s][X]`` is either ``(Shift, t)`` or ``(Reduce, rule)``.  If ``X`` is a nonterminal,
-    the entry ``(Shift, t)`` is the goto of state ``s`` for ``X``.  The parser accepts when it
-    reaches ``end_state`` while the lookahead is ``$END``.
+    ``states[s][X]`` is either ``(Shift, t)``, ``(Reduce, rule)``, or ``(Error, None)``.  If ``X``
+    is a nonterminal, the entry ``(Shift, t)`` is the goto of state ``s`` for ``X``.  The entry
+    ``(Error, None)`` stems from %nonassoc: the token is a syntax error, although the contextual
+    lexer accepts it.  The parser accepts when it reaches ``end_state`` while the lookahead is ``$END``.
     """
     def __init__(self, states: List[Dict[str, Tuple]], start_state: int, end_state: int) -> None:
         self.states = states
@@ -45,6 +51,10 @@ class ParseTable:
 
 
 Item = Tuple[int, int]   # (index of the rule, position of the dot)
+
+# Maps every terminal (or name without a terminal) that occurs in a precedence declaration to its
+# level (1 for the first declaration) and its associativity ('left', 'right', 'nonassoc', or 'precedence').
+Precedence = Dict[str, Tuple[int, str]]
 
 # Why two states with the same core have been kept apart: a symbol, the actions of both states for
 # this symbol (None if a state has no action), and the terminal that the lexer could confuse with it.
@@ -75,9 +85,13 @@ class Conflict:
 
     ``rules`` are the rules that could be reduced, ``shift_state`` is the state the parser
     could shift to (or None), and ``chosen`` is the action that was put into the table.
+    If the precedence declarations have resolved a shift/reduce conflict, ``precedence`` explains
+    how, as bison does:  ``('<', a, b)`` means that ``a`` has a lower precedence than ``b``, and
+    ``(assoc, terminal)`` means that the rule and the terminal have the same precedence, so that the
+    associativity has decided.  Otherwise ``precedence`` is None.
     """
     def __init__(self, state: int, terminal: str, rules: List[Rule], shift_state: Optional[int],
-                 chosen: Tuple, resolved: bool, reason: str) -> None:
+                 chosen: Tuple, resolved: bool, reason: str, precedence: Optional[Tuple[str, ...]] = None) -> None:
         self.state = state
         self.terminal = terminal
         self.rules = rules
@@ -85,6 +99,7 @@ class Conflict:
         self.chosen = chosen
         self.resolved = resolved
         self.reason = reason
+        self.precedence = precedence
 
     @property
     def kind(self) -> str:
@@ -128,7 +143,8 @@ def _first_sets(rules: List[Rule]) -> Tuple[Dict[str, Set[str]], Set[str]]:
 class LR1Analyzer:
     """Builds the canonical LR(1) automaton and the parse table for ``rules`` and the start symbol ``start``.
 
-    The rule with index 0 is the augmented rule ``$root_<start> : <start>``.  If ``merge_states`` is
+    The rule with index 0 is the augmented rule ``$root_<start> : <start>``.  ``precedence``
+    resolves shift/reduce conflicts as in bison.  If ``merge_states`` is
     true, states with the same core are merged afterwards, as long as this does not introduce new
     conflicts.  If the parser uses a contextual lexer, ``collision(new, accepted)`` tells whether the
     lexer might split the input differently if the terminal ``new`` is added to the terminals
@@ -138,8 +154,10 @@ class LR1Analyzer:
     """
 
     def __init__(self, rules: List[Rule], start: str, merge_states: bool = False,
-                 collision: Optional[Callable[[str, Collection[str]], Optional[str]]] = None) -> None:
+                 collision: Optional[Callable[[str, Collection[str]], Optional[str]]] = None,
+                 precedence: Optional[Precedence] = None) -> None:
         self.start = start
+        self.precedence: Precedence = precedence or {}
         self.root_rule = Rule(NonTerminal('$root_' + start), [NonTerminal(start)])
         self.rules: List[Rule] = [self.root_rule] + list(rules)
 
@@ -247,6 +265,35 @@ class LR1Analyzer:
             for name, kernel in successors.items():
                 state.transitions[name] = get_state(kernel)
 
+    def rule_precedence(self, rule: Rule) -> Optional[str]:
+        """The symbol whose precedence the rule has, or None:  the symbol after %prec, or else the
+        last terminal of the rule (as in bison, also if only an earlier terminal has a precedence)."""
+        if rule.prec is not None:
+            return rule.prec
+        for sym in reversed(rule.expansion):
+            if sym.is_term:
+                return sym.name if sym.name in self.precedence else None
+        return None
+
+    def _resolve_shift_reduce(self, terminal: str, rule: Rule, shift: Tuple) -> Tuple[Tuple, str, Optional[Tuple[str, ...]]]:
+        "Resolves a shift/reduce conflict as bison does.  Returns the action, the reason, and the explanation."
+        symbol = self.rule_precedence(rule)
+        if symbol is not None and terminal in self.precedence:
+            rule_level = self.precedence[symbol][0]
+            level, assoc = self.precedence[terminal]
+            if rule_level < level:
+                return shift, 'resolved as shift', ('<', symbol, terminal)
+            if rule_level > level:
+                return (Reduce, rule), 'resolved as reduce', ('<', terminal, symbol)
+            if assoc == 'left':
+                return (Reduce, rule), 'resolved as reduce', (assoc, terminal)
+            if assoc == 'right':
+                return shift, 'resolved as shift', (assoc, terminal)
+            if assoc == 'nonassoc':
+                return (Error, None), 'resolved as an error', (assoc, terminal)
+            # %precedence gives no associativity, so the conflict is not resolved by the precedence
+        return shift, 'resolved as shift', None
+
     def _build_actions(self) -> None:
         for state in self.states:
             actions: Dict[str, Tuple] = {name: (Shift, target) for name, target in state.transitions.items()}
@@ -272,10 +319,12 @@ class LR1Analyzer:
                         resolved, reason = False, 'not resolved'
 
                 if terminal in actions:
+                    shift = actions[terminal]
+                    precedence = None
                     if resolved:
-                        reason = 'resolved as shift'
-                    self.conflicts.append(Conflict(state.index, terminal, rules, actions[terminal][1],
-                                                   actions[terminal], resolved, reason))
+                        actions[terminal], reason, precedence = self._resolve_shift_reduce(terminal, rule, shift)
+                    self.conflicts.append(Conflict(state.index, terminal, rules, shift[1],
+                                                   actions[terminal], resolved, reason, precedence))
                 else:
                     actions[terminal] = (Reduce, rule)
                     if len(rules) > 1:
@@ -286,8 +335,9 @@ class LR1Analyzer:
 
     @staticmethod
     def _signature(state: LR1State, block: List[int]) -> Dict[str, Tuple]:
-        "The actions of the state, where a shift or goto refers to the block of its target"
-        return {name: (Shift, block[arg]) if action is Shift else (Reduce, id(arg))
+        """The actions of the state, where a shift or goto refers to the block of its target.
+        An error entry (from %nonassoc) is an action, too, so it is never merged with a shift."""
+        return {name: (Shift, block[arg]) if action is Shift else (action, id(arg))
                 for name, (action, arg) in state.actions.items()}
 
     @staticmethod
@@ -416,7 +466,7 @@ class LR1Analyzer:
             if key not in seen:
                 seen.add(key)
                 conflicts.append(Conflict(new_index[c.state], c.terminal, c.rules, shift_state,
-                                          chosen, c.resolved, c.reason))
+                                          chosen, c.resolved, c.reason, c.precedence))
         conflicts.sort(key=lambda c: c.state)
 
         # Explain why states with the same core have been kept apart.  As every block is compatible

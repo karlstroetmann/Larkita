@@ -12,7 +12,7 @@ from .larkita import Larkita
 from .lexer import Token
 from .utils import logger
 
-__version__: str = "0.5.1"
+__version__: str = "0.6.0"
 
 __all__ = (
     "ConflictWarning",

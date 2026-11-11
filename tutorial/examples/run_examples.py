@@ -14,7 +14,7 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 OUTPUT = os.path.join(HERE, 'output')
 
 SCRIPTS = ['first', 'lex', 'shapes', 'calc', 'while', 'errors', 'message',
-           'dangling', 'look-ahead', 'priority', 'merge', 'not-lalr']
+           'dangling', 'precedence', 'look-ahead', 'priority', 'merge', 'not-lalr']
 
 
 def run(name):
@@ -54,6 +54,14 @@ def state(text, number):
     return match.group(0)
 
 
+def state_with_item(text, item):
+    """Returns the description of the first state of an output file that contains the item."""
+    for number in re.findall(r'^State (\d+)$', text, re.M):
+        description = state(text, number)
+        if item in description:
+            return description
+
+
 def first_reason(text):
     """Returns the beginning of the section "Merged states" up to the first pair of states that
     have been kept apart, including the reasons for this pair."""
@@ -83,6 +91,9 @@ def main():
     dangling = read('dangling.out')
     write('dangling-conflicts', section(dangling, 'Conflicts'))
     write('dangling-state', state(dangling, conflict_state(dangling)))
+    precedence = read('precedence.out')
+    write('precedence-section', section(precedence, 'Precedence'))
+    write('precedence-state', state_with_item(precedence, 'expr → expr "+" expr •'))
     look_ahead = read('look-ahead.out')
     write('look-ahead-state', state(look_ahead, conflict_state(look_ahead)))
     write('priority-conflicts', section(read('priority.out'), 'Conflicts'))

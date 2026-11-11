@@ -108,23 +108,27 @@ class Rule:
         order : index of this expansion amongst all rules of the same name
         ast : how the abstract syntax tree is built, or None for the auxiliary rules that are
               created for EBNF repetitions (their children are spliced into the parent's tuple)
+        prec : the name of the terminal (or of the name without a terminal) given by %prec, or None
     """
-    __slots__ = ('origin', 'expansion', 'options', 'order', 'ast', '_hash')
+    __slots__ = ('origin', 'expansion', 'options', 'order', 'ast', 'prec', '_hash')
 
     origin: NonTerminal
     expansion: Sequence[Symbol]
     order: int
     options: RuleOptions
     ast: Optional[AstSpec]
+    prec: Optional[str]
     _hash: int
 
     def __init__(self, origin: NonTerminal, expansion: Sequence[Symbol],
-                 order: int=0, options: Optional[RuleOptions]=None, ast: Optional[AstSpec]=None):
+                 order: int=0, options: Optional[RuleOptions]=None, ast: Optional[AstSpec]=None,
+                 prec: Optional[str]=None):
         self.origin = origin
         self.expansion = expansion
         self.order = order
         self.options = options or RuleOptions()
         self.ast = ast
+        self.prec = prec
         self._hash = hash((self.origin, tuple(self.expansion)))
 
     def __str__(self):

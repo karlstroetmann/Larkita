@@ -320,6 +320,168 @@ class TestLR1(LarkitaTestCase):
         self.assertTrue(all(c.resolved for c in parser.conflicts))
 
 
+def N(text):
+    return ('NUMBER', text)
+
+
+class TestPrecedence(LarkitaTestCase):
+    "Shift/reduce conflicts are resolved by precedence declarations as in bison"
+
+    EXPR = '''
+    %nonassoc "<" "="
+    %left "+" "-"
+    %left "*" "/"
+    %precedence UMINUS
+    %right "^"
+
+    expr: expr ("<" | "=" | "+" | "-" | "*" | "/" | "^") expr
+        | "-" expr          %prec UMINUS
+        | "(" expr ")"      %ignore "(", ")"
+        | NUMBER
+    '''
+
+    def make_quietly(self, grammar, **options):
+        "Generates the parser and checks that there is no ConflictWarning"
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', ConflictWarning)
+            return self.make(grammar, **options)
+
+    def test_higher_precedence_wins(self):
+        parser = self.make_quietly(self.EXPR)
+        self.assertEqual(parser.parse('1 + 2 * 3'), ('+', N('1'), ('*', N('2'), N('3'))))
+        self.assertEqual(parser.parse('1 * 2 + 3'), ('+', ('*', N('1'), N('2')), N('3')))
+        self.assertEqual(parser.parse('1 + 2 < 3 * 4'), ('<', ('+', N('1'), N('2')), ('*', N('3'), N('4'))))
+
+    def test_associativity(self):
+        parser = self.make_quietly(self.EXPR)
+        self.assertEqual(parser.parse('1 - 2 + 3'), ('+', ('-', N('1'), N('2')), N('3')))
+        self.assertEqual(parser.parse('1 / 2 * 3'), ('*', ('/', N('1'), N('2')), N('3')))
+        self.assertEqual(parser.parse('1 ^ 2 ^ 3'), ('^', N('1'), ('^', N('2'), N('3'))))
+
+    def test_prec(self):
+        parser = self.make_quietly(self.EXPR)
+        self.assertEqual(parser.parse('-1 ^ 2'), ('-', ('^', N('1'), N('2'))))
+        self.assertEqual(parser.parse('-1 * 2'), ('*', ('-', N('1')), N('2')))
+        self.assertEqual(parser.parse('1 - -2 - 3'), ('-', ('-', N('1'), ('-', N('2'))), N('3')))
+
+    def test_nonassoc(self):
+        parser = self.make_quietly(self.EXPR)
+        self.assertEqual(parser.parse('(1 < 2) = 3'), ('=', ('<', N('1'), N('2')), N('3')))
+        with self.assertRaises(UnexpectedToken) as cm:
+            parser.parse('1 < 2 = 3')
+        self.assertEqual((cm.exception.token, cm.exception.column), ('=', 7))
+        self.assertNotIn('EQUAL', cm.exception.expected)
+        self.assertIn('PLUS', cm.exception.expected)
+
+    def test_conflicts_resolved_by_precedence(self):
+        parser = self.make_quietly(self.EXPR)
+        self.assertTrue(parser.conflicts)
+        self.assertTrue(all(c.precedence is not None for c in parser.conflicts))
+
+    def test_rule_has_the_precedence_of_its_last_terminal(self):
+        # As in bison, the rule '(+ !) expr' has no precedence, since "!" has none.
+        g = '%left "+"\nexpr: expr "+" "!" expr | expr "+" expr | NUMBER'
+        with self.assertWarns(ConflictWarning):
+            parser = self.make(g)
+        self.assertEqual({c.precedence is None for c in parser.conflicts}, {True, False})
+        self.assertEqual(parser.parse('1 + 2 + 3'), ('+', ('+', N('1'), N('2')), N('3')))
+        self.assertEqual(parser.parse('1 + ! 2 + 3'), (('+', '!'), N('1'), ('+', N('2'), N('3'))))
+
+    def test_precedence_without_associativity(self):
+        # %precedence cannot resolve a conflict between symbols with the same precedence
+        g = '%precedence "+"\n%precedence "*"\nexpr: expr ("+" | "*") expr | NUMBER'
+        with self.assertWarns(ConflictWarning):
+            parser = self.make(g)
+        self.assertEqual(parser.parse('1 + 2 + 3'), ('+', N('1'), ('+', N('2'), N('3'))))
+        self.assertEqual(parser.parse('1 * 2 + 3'), ('+', ('*', N('1'), N('2')), N('3')))
+
+    def test_prec_with_literal_and_alias(self):
+        g = '''
+        %left "+"
+        %left "*"
+        expr: expr ("+" | "*") expr
+            | "~" expr     %prec "*"
+            | "-" expr     %prec "+"  -> neg
+            | NUMBER
+        '''
+        parser = self.make_quietly(g)
+        self.assertEqual(parser.parse('~ 1 * 2'), ('*', ('~', N('1')), N('2')))
+        self.assertEqual(parser.parse('- 1 * 2'), ('neg', ('*', N('1'), N('2'))))
+        self.assertEqual(parser.parse('- 1 + 2'), ('+', ('neg', N('1')), N('2')))
+
+    def test_commas_are_optional(self):
+        g = '%left "+", "-" "*"\nexpr: expr ("+" | "-" | "*") expr | NUMBER'
+        self.assertEqual(self.make_quietly(g).parse('1 * 2 - 3 + 4'),
+                         ('+', ('-', ('*', N('1'), N('2')), N('3')), N('4')))
+
+    def test_literals_and_named_terminals(self):
+        # A literal and the terminal that is defined by it are the same symbol
+        for g in ['PLUS: "+"\n%left PLUS\nexpr: expr "+" expr | NUMBER',
+                  'PLUS: "+"\n%left "+"\nexpr: expr PLUS expr | NUMBER']:
+            parser = self.make_quietly(g)
+            self.assertEqual(parser.parse('1 + 2 + 3')[1][0], parser.parse('1 + 2')[0])
+
+    def test_output_file(self):
+        parser = self.make_quietly(self.EXPR)
+        with open(parser.out_file, encoding='utf8') as f:
+            report = f.read()
+        n = len(parser.conflicts)
+        self.assertIn('Conflicts:    %d (%d resolved by precedence, 0 unresolved)' % (n, n), report)
+        self.assertIn('\n  %nonassoc    "<" "="\n  %left        "+" "-"\n', report)
+        self.assertIn('\n  %precedence  UMINUS\n  %right       "^"\n', report)
+        self.assertRegex(report, r'\(8\) +expr → "-" expr +UMINUS\n')
+        # As in bison, the look-ahead token is on the right if the conflict is resolved as shift
+        for token, reason in [('+', 'resolved as reduce (%left "+")'), ('^', 'resolved as shift (%right "^")'),
+                              ('*', 'resolved as shift ("+" < "*")'), ('+', 'resolved as reduce ("+" < "*")'),
+                              ('^', 'resolved as shift (UMINUS < "^")'),
+                              ('<', 'resolved as an error (%nonassoc "<")')]:
+            self.assertIn(', shift/reduce conflict on "%s", %s\n' % (token, reason), report)
+        self.assertRegex(report, r'\n    "<" +error \(nonassociative\)\n')
+
+    def test_no_precedence_section_without_declarations(self):
+        parser = self.make('expr: expr "+" NUMBER | NUMBER')
+        with open(parser.out_file, encoding='utf8') as f:
+            report = f.read()
+        self.assertNotIn('Precedence', report)
+        self.assertIn('Conflicts:    0 (0 unresolved)', report)
+
+    def test_errors(self):
+        g = 'expr: expr "+" expr | "-" expr %prec UMINUS | NUMBER\n'
+        for precedence, message in [
+                ('%left "+"\n%right "+"', 'The precedence of "+" is declared twice'),
+                ('%left "+" "*"\n%left UMINUS', 'The literal "*" after %left does not occur in the grammar'),
+                ('%left "+" PLUSS\n%left UMINUS', 'PLUSS after %left is neither a terminal nor used after %prec'),
+                ('%left "+"', 'UMINUS after %prec in rule expr has no precedence'),
+                ('%left "+"\n%left UMINUS\n%left "-" NUMBER', None)]:
+            with self.subTest(precedence=precedence):
+                if message is None:
+                    self.make_quietly(precedence + '\n' + g)
+                else:
+                    with self.assertRaisesRegex(GrammarError, re.escape(message)):
+                        self.make(precedence + '\n' + g)
+        with self.assertRaisesRegex(GrammarError, '%prec can only be given at the end of an alternative'):
+            self.make('%left "+"\nexpr: (expr "+" expr %prec "+") | NUMBER')
+        with self.assertRaisesRegex(GrammarError, '%prec are not allowed in terminals'):
+            self.make('%left "+"\nexpr: expr "+" expr | NUMBER\nA: "a" %prec "+"')
+        with self.assertRaisesRegex(GrammarError, re.escape('%prec has to be given before an alias (->) or %ignore')):
+            self.make('%left "+"\nexpr: expr "+" expr | "-" expr -> neg %prec "+" | NUMBER')
+
+    def test_imported_grammars_have_no_precedence_declarations(self):
+        with open(os.path.join(self.tmpdir, 'ops.lark'), 'w') as handle:
+            handle.write('%left "+"\nsum: sum "+" sum | INT\n%import common.INT\n')
+        g = 'start: sum\n%import .ops.sum\n%ignore " "'
+        path = os.path.join(self.tmpdir, 'start.lark')
+        with open(path, 'w') as handle:
+            handle.write(g)
+        with self.assertWarns(ConflictWarning):
+            Larkita.open(path)
+        with open(path, 'w') as handle:
+            handle.write('%left "+"\n' + g)
+        parser = self.make_quietly(open(path).read(), source_path=path)
+        self.assertEqual(parser.parse('1 + 2 + 3'),
+                         ('+', ('+', ('ops__INT', '1'), ('ops__INT', '2')), ('ops__INT', '3')))
+
+
 class TestMergeStates(LarkitaTestCase):
     "The option merge_states=True merges states with the same core, as long as this is safe"
 
@@ -405,6 +567,35 @@ class TestMergeStates(LarkitaTestCase):
         self.assertEqual(parser.parse('if 1 then if 2 then 3 else 4'),
                          (('if', 'then'), ('NUMBER', '1'),
                           (('if', 'then', 'else'), ('NUMBER', '2'), ('NUMBER', '3'), ('NUMBER', '4'))))
+
+    def test_precedence(self):
+        canonical = self.make(TestPrecedence.EXPR)
+        merged = self.make(TestPrecedence.EXPR, merge_states=True)
+        self.assertLess(len(merged.parse_table.states), len(canonical.parse_table.states))
+        for text in ['1 + 2 * -3 ^ 4 ^ 5 - 6', '(1 < 2) = (3 - 4 - 5)', '-(1 + 2) / 3 < 4 * 5']:
+            self.assertEqual(merged.parse(text), canonical.parse(text))
+        for text in ['1 < 2 = 3', '(1 + 2 < 3 < 4)', '1 + * 2', '(1 + 2']:
+            errors = []
+            for parser in canonical, merged:
+                with self.assertRaises(UnexpectedToken) as cm:
+                    parser.parse(text)
+                errors.append((cm.exception.line, cm.exception.column))
+            self.assertEqual(errors[0], errors[1], text)
+
+    def test_nonassoc_errors_are_not_merged_with_shifts(self):
+        # After "a" "?", the token "<" is an error because of %nonassoc, while after "b" "?" it is
+        # shifted.  The states have the same core, but merging them would accept "a ? < 1 < 2".
+        g = '''
+        %nonassoc "?" "<"
+        s: "a" x "<" NUMBER | "b" x
+        x: "?" | "?" "<" NUMBER
+        '''
+        parser = self.make(g, merge_states=True, lexer='basic')
+        self.assertEqual(parser.parse('b ? < 1'), ('b', (('?', '<'), N('1'))))
+        with self.assertRaises(UnexpectedToken):
+            parser.parse('a ? < 1 < 2')
+        with open(parser.out_file, encoding='utf8') as f:
+            self.assertRegex(f.read(), r'state \d+ rejects "<" \(%nonassoc\)')
 
     def test_reduce_reduce_conflict_is_still_an_error(self):
         with self.assertRaises(GrammarError):
@@ -587,15 +778,20 @@ class TestPygmentsLexer(unittest.TestCase):
         from pygments.token import Comment, Keyword, Name, String
         from larkita.pygments_lexer import LarkitaLexer
         g = ('expr: expr "+" NUMBER    -> "plus"   // a comment\n'
+             '    | "-" expr  %prec UMINUS\n'
              '    | NUMBER\n'
              'COMMENT: /#[^\\n]*/\n'
              '%import common.NUMBER, common.WS\n'
-             '%ignore WS, COMMENT\n')
+             '%ignore WS, COMMENT\n'
+             '%left "+"\n'
+             '%precedence UMINUS\n')
         tokens = self.tokens(LarkitaLexer(), g)
         self.assertEqual(tokens[0], (Name.Function, 'expr'))
         for expected in [(String, '"+"'), (Name.Variable, 'NUMBER'), (Name.Label, '"plus"'),
                          (Comment.Single, '// a comment'), (String.Regex, '/#[^\\n]*/'),
-                         (Name.Variable, 'COMMENT'), (Keyword.Namespace, '%import'), (Keyword.Namespace, '%ignore')]:
+                         (Name.Variable, 'COMMENT'), (Keyword.Namespace, '%import'), (Keyword.Namespace, '%ignore'),
+                         (Keyword.Namespace, '%prec'), (Name.Variable, 'UMINUS'), (Keyword.Namespace, '%left'),
+                         (Keyword.Namespace, '%precedence')]:
             self.assertIn(expected, tokens)
 
     def test_python_with_grammar(self):

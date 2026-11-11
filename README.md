@@ -14,7 +14,8 @@ Larkita is a light-weight version of the Python parser generator
   conflicts easy to debug.
 
 Grammars are written in Lark's EBNF notation, with a few additions for building
-the abstract syntax tree.
+the abstract syntax tree.  The precedence and associativity of operators can be
+declared as in bison.
 
 ## Installation
 
@@ -172,6 +173,8 @@ Larkita reads Lark grammars:
   (`larkita/grammars/common.lark`), and `%import .file.rule` imports from a
   grammar file next to the current one.  `-> NAME` renames an import.  Several
   imports are separated by commas: `%import common.CNAME -> ID, common.INT, common.WS`.
+* `%left`, `%right`, `%nonassoc`, `%precedence` and `%prec` declare the
+  precedence of operators as in bison (see [Operator precedence](#operator-precedence)).
 * `%declare`, `%extend` and `%override` work as in Lark.
 * `//` starts a comment.
 
@@ -191,8 +194,10 @@ The file contains
 1. the rules after the EBNF operators have been expanded, each followed by the
    abstract syntax tree that a reduction produces, e.g.
    `(3) expr → expr "+" product  ⇒ ("+", ast(expr), ast(product))`;
-2. a list of all conflicts and how they were resolved;
-3. all states.  Each state lists its items with their lookahead tokens (closure
+2. the precedence declarations and the precedences of the rules, if the grammar
+   declares any;
+3. a list of all conflicts and how they were resolved;
+4. all states.  Each state lists its items with their lookahead tokens (closure
    items are marked with `+`), followed by its actions and gotos:
 
 ```
@@ -211,11 +216,47 @@ State 2
 
 ## Conflicts
 
-* **Shift/reduce conflicts** are resolved in favour of shift (so the dangling
-  `else` belongs to the innermost `if`).  Larkita issues a `ConflictWarning`.
+* **Shift/reduce conflicts** are resolved by precedence declarations, as in bison
+  (see below).  All other shift/reduce conflicts are resolved in favour of shift
+  (so the dangling `else` belongs to the innermost `if`), and Larkita issues a
+  `ConflictWarning`.
 * **Reduce/reduce conflicts** are resolved in favour of the rule with the highest
   priority.  If no rule has a higher priority than the others, `Larkita` raises a
   `GrammarError`; the output file is written anyway.
+
+### Operator precedence
+
+Ambiguous grammars for expressions are made unambiguous by declaring the
+precedence and associativity of the operators, as in bison:
+
+```
+%nonassoc "<" "=="
+%left "+" "-"
+%left "*" "/"
+%precedence UMINUS
+%right "^"
+
+expr: expr ("<" | "==" | "+" | "-" | "*" | "/" | "^") expr
+    | "-" expr          %prec UMINUS -> "neg"
+    | "(" expr ")"      %ignore "(", ")"
+    | NUMBER
+```
+
+* Every declaration lists literals and terminals (commas between them are
+  optional).  Its symbols have the same precedence, which is higher than the
+  precedence of the symbols declared above.
+* A rule has the precedence of its last terminal.  `%prec NAME` after an
+  alternative (in front of an alias or `%ignore`) gives it the precedence of
+  `NAME` instead; `NAME` may be a name like `UMINUS` that is not a terminal.
+* If the parser could shift a token or reduce with a rule, and both have a
+  precedence, the higher precedence wins.  If they have the same precedence,
+  `%left` reduces, `%right` shifts, and `%nonassoc` makes the token a syntax
+  error, so `1 < 2 < 3` is rejected.  `%precedence` declares no associativity,
+  so such a conflict is not resolved by the precedence.
+* Conflicts that are resolved by precedence cause no warning.  The output file
+  lists them with the reason, written as in bison, e.g.
+  `resolved as reduce (%left "+")` or `resolved as shift ("+" < "*")`.
+* Precedence declarations in imported grammars are ignored.
 
 ## Merging states
 

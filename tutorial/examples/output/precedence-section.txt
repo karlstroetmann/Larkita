@@ -1,0 +1,19 @@
+The precedence increases from top to bottom.
+
+  %nonassoc    "<" "=="
+  %left        "+" "-"
+  %left        "*" "/"
+  %precedence  UMINUS
+  %right       "^"
+
+A rule has the precedence of the symbol after %prec or, without %prec, of its
+last terminal.  These rules have a precedence:
+
+  (1)  expr → expr "<" expr   "<"
+  (2)  expr → expr "==" expr  "=="
+  (3)  expr → expr "+" expr   "+"
+  (4)  expr → expr "-" expr   "-"
+  (5)  expr → expr "*" expr   "*"
+  (6)  expr → expr "/" expr   "/"
+  (7)  expr → expr "^" expr   "^"
+  (8)  expr → "-" expr        UMINUS

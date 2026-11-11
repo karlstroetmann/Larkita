@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, List
 
 from .exceptions import UnexpectedToken
 from .lexer import Token, LexerThread
-from .lr_analysis import ParseTable, Shift, END
+from .lr_analysis import ParseTable, Shift, Error, END
 from .grammar import Rule
 
 
@@ -45,7 +45,9 @@ class ParserState:
             try:
                 action, arg = states[state][token.type]
             except KeyError:
-                expected = {s for s in states[state].keys() if s.isupper()}
+                action = Error
+            if action is Error:     # the entry is missing, or it stems from %nonassoc
+                expected = {s for s, (a, _) in states[state].items() if s.isupper() and a is not Error}
                 if state == end_state and not is_end:
                     expected.add(END)
                 raise UnexpectedToken(token, expected, state=self)

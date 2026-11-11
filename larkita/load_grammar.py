@@ -15,7 +15,7 @@ from .lexer import Token, TerminalDef, PatternStr, PatternRE, Pattern
 
 from .parse_tree_builder import ParseTreeBuilder
 from .parser_frontends import ParsingFrontend
-from .lr_analysis import LR1Analyzer
+from .lr_analysis import LR1Analyzer, Precedence
 from .common import LexerConf
 from .grammar import RuleOptions, Rule, Terminal, NonTerminal, Symbol, AstSpec, TOKEN_DEFAULT_PRIORITY
 from .utils import classify, dedup_list
@@ -98,6 +98,8 @@ TERMINALS = {
     '_DECLARE': r'%declare',
     '_EXTEND': r'%extend',
     '_IMPORT': r'%import',
+    'ASSOC': r'%(left|right|nonassoc|precedence)(?![a-z])',
+    '_PREC': r'%prec(?![a-z])',
     'NUMBER': r'[+-]?\d+',
 }
 
@@ -105,7 +107,8 @@ TERMINALS = {
 RULES = {
     'start': ['_list'],
     '_list':  ['_item', '_list _item'],
-    '_item':  ['rule', 'term', 'ignore', 'ast_ignore', 'import', 'declare', 'override', 'extend', '_NL'],
+    '_item':  ['rule', 'term', 'ignore', 'ast_ignore', 'import', 'declare', 'override', 'extend',
+               'precedence', '_NL'],
 
     'rule': ['rule_modifiers RULE priority _COLON expansions _NL'],
     'rule_modifiers': ['RULE_MODIFIERS',
@@ -119,11 +122,17 @@ RULES = {
 
     # An alternative may end with an alias (-> name or -> "name"), or with the
     # literals that are ignored in its abstract syntax tree (%ignore "(", ")").
+    # Both may be preceded by the symbol whose precedence the alternative has (%prec UMINUS).
     '?alias':     ['expansion _TO nonterminal',
                    'expansion _TO STRING',
                    'expansion ignore_literals',
-                   'expansion'],
+                   'expansion',
+                   'expansion prec _TO nonterminal',
+                   'expansion prec _TO STRING',
+                   'expansion prec ignore_literals',
+                   'expansion prec'],
     'ignore_literals': ['_IGNORE _literals'],
+    'prec': ['_PREC STRING', '_PREC TERMINAL'],
     '_literals': ['STRING', '_literals _COMMA STRING'],
 
     'expansion': ['_expansion'],
@@ -169,6 +178,13 @@ RULES = {
     # %ignore: "(", ")"  --  literals that are ignored in the abstract syntax trees of all rules
     'ast_ignore': ['_IGNORE _COLON _literals _NL'],
     'declare': ['_DECLARE _declare_args _NL'],
+    # %left "+" "-"  --  the precedence and associativity of literals and terminals, as in bison.
+    # The commas between the symbols are optional.
+    'precedence': ['ASSOC _precedence_list _NL'],
+    '_precedence_list': ['_precedence_symbol',
+                         '_precedence_list _precedence_symbol',
+                         '_precedence_list _COMMA _precedence_symbol'],
+    '_precedence_symbol': ['STRING', 'TERMINAL'],
     # %import common.CNAME -> ID, common.WS  --  several imports in one line
     'import': ['_IMPORT _import_list _NL'],
     '_import_list': ['import_item', '_import_list _COMMA import_item'],
@@ -393,11 +409,11 @@ class SimplifyRule_Visitor(Visitor):
                 break
 
     def alias(self, tree):
-        rule, alias_name = tree.children
+        rule, *annotations = tree.children
         if rule.data == 'expansions':
             aliases = []
-            for child in tree.children[0].children:
-                aliases.append(ST('alias', [child, alias_name]))
+            for child in rule.children:
+                aliases.append(ST('alias', [child, *annotations]))
             tree.data = 'expansions'
             tree.children = aliases
 
@@ -409,16 +425,17 @@ class SimplifyRule_Visitor(Visitor):
 
 
 class RuleTreeToText(Transformer):
+    "Returns the alternatives of a rule as triples (symbols, AstSpec, the token after %prec or None)"
     def expansions(self, x):
         return x
 
     def expansion(self, symbols):
-        return symbols, None
+        return symbols, None, None
 
     def alias(self, x):
-        (expansion, _spec), spec = x
+        (expansion, _spec, _prec), spec, *prec = x
         assert _spec is None and isinstance(spec, AstSpec), (spec, expansion, '-', _spec)
-        return expansion, spec
+        return expansion, spec, (prec[0] if prec else None)
 
 
 class PrepareAnonTerminals(Transformer_InPlace):
@@ -612,7 +629,7 @@ class TerminalTreeToPattern(Transformer_NonRecursive):
         return self.expr(expr + ['?'])
 
     def alias(self, t):
-        raise GrammarError("Aliases (->) and %ignore annotations are not allowed in terminals")
+        raise GrammarError("Aliases (->), %ignore annotations, and %prec are not allowed in terminals")
 
     def value(self, v):
         return v[0]
@@ -654,8 +671,8 @@ def _make_ast_spec(rule_name: str, expansion: Tree, ignore: Set[str], alias: Opt
             return
         assert isinstance(node, Tree), node
         if node.data == 'alias':
-            raise GrammarError("In rule %s: an alias (->) or an %%ignore annotation can only be given "
-                               "at the end of an alternative" % rule_name)
+            raise GrammarError("In rule %s: an alias (->), an %%ignore annotation, or %%prec can only be "
+                               "given at the end of an alternative" % rule_name)
         if node.data == 'literal':
             token ,= node.children
             if token.type == 'STRING':
@@ -723,10 +740,11 @@ def _mark_child_literals(tree: Tree, ignore: Set[str], inside: bool = False) -> 
 def _attach_ast_specs(rule_name: str, tree: Tree, ast_ignore: Set[str]) -> None:
     """Replaces every alternative of the rule by ``alias`` nodes that carry the AstSpecs of the
     alternatives that it abbreviates (see ``_expand_alternatives``).  An alternative with an alias
-    is not expanded, since its head is the alias.
+    is not expanded, since its head is the alias.  If the alternative is followed by ``%prec``, the
+    ``alias`` nodes also carry the token after ``%prec``.
 
-    SimplifyRule_Visitor later copies the AstSpec to all BNF rules that are derived from the
-    alternative, and RuleTreeToText hands it over to the Rule objects.
+    SimplifyRule_Visitor later copies the AstSpec and this token to all BNF rules that are derived
+    from the alternative, and RuleTreeToText hands them over to the Rule objects.
     """
     assert tree.data == 'expansions'
     while tree.expand_kids_by_data('expansions'):   # alternatives that were added with %extend
@@ -736,15 +754,19 @@ def _attach_ast_specs(rule_name: str, tree: Tree, ast_ignore: Set[str]) -> None:
     for alternative in tree.children:
         alias = None
         ignore = ast_ignore
+        prec: List[Token] = []
         if alternative.data == 'alias':
-            expansion, arg = alternative.children
-            if isinstance(arg, Tree):
-                assert arg.data == 'ignore_literals', arg
-                ignore = ast_ignore | {_literal_text(t) for t in arg.children}
-            elif isinstance(arg, Token):    # -> "name"
-                alias = _literal_text(arg)
-            else:                           # -> name
-                alias = arg.name
+            expansion, *args = alternative.children
+            for arg in args:
+                if isinstance(arg, Tree) and arg.data == 'prec':
+                    prec = arg.children
+                elif isinstance(arg, Tree):
+                    assert arg.data == 'ignore_literals', arg
+                    ignore = ast_ignore | {_literal_text(t) for t in arg.children}
+                elif isinstance(arg, Token):    # -> "name"
+                    alias = _literal_text(arg)
+                else:                           # -> name
+                    alias = arg.name
         else:
             expansion = alternative
         if alias is None:
@@ -754,8 +776,18 @@ def _attach_ast_specs(rule_name: str, tree: Tree, ast_ignore: Set[str]) -> None:
             variants = [expansion]
         for variant in variants:
             _mark_child_literals(variant, ignore)
-            alternatives.append(ST('alias', [variant, _make_ast_spec(rule_name, variant, ignore, alias)]))
+            alternatives.append(ST('alias', [variant, _make_ast_spec(rule_name, variant, ignore, alias)] + prec))
     tree.children = alternatives
+
+
+def _precedence_name(token: Token, term_reverse: Dict[Pattern, TerminalDef], where: str) -> str:
+    "The name of the terminal that a literal stands for, or the name of a terminal (after %left, ..., %prec)"
+    if token.type == 'TERMINAL':
+        return token.value
+    termdef = term_reverse.get(_literal_to_pattern(token))
+    if termdef is None:
+        raise GrammarError("The literal %s %s does not occur in the grammar" % (token, where))
+    return termdef.name
 
 
 class Grammar:
@@ -765,16 +797,22 @@ class Grammar:
     ignore: List[str]
     ast_ignore: List[str]
     first_rule: Optional[str]
+    precedence: List[Tuple[str, List[Token]]]   # e.g. ('left', [the tokens '"+"' and '"-"'])
 
     def __init__(self, rule_defs: List[Tuple[str, Tree, RuleOptions]], term_defs: List[Tuple[str, Tuple[Tree, int]]],
-                 ignore: List[str], ast_ignore: List[str], first_rule: Optional[str]) -> None:
+                 ignore: List[str], ast_ignore: List[str], first_rule: Optional[str],
+                 precedence: List[Tuple[str, List[Token]]]) -> None:
         self.term_defs = term_defs
         self.rule_defs = rule_defs
         self.ignore = ignore
         self.ast_ignore = ast_ignore
         self.first_rule = first_rule
+        self.precedence = precedence
 
-    def compile(self, start, terminals_to_keep) -> Tuple[List[TerminalDef], List[Rule], List[str]]:
+    def compile(self, start, terminals_to_keep) -> Tuple[List[TerminalDef], List[Rule], List[str], Precedence]:
+        """Returns the terminals, the rules, the names of the terminals that the lexer skips, and the
+        precedences:  Every terminal (or name without a terminal) that occurs in a precedence declaration
+        is mapped to its level (1 for the first declaration) and its associativity, e.g. 'left'."""
         # We change the trees in-place (to support huge grammars)
         # So deepcopy allows calling compile more than once.
         term_defs = [(n, (nr_deepcopy_tree(t), p)) for n, (t, p) in self.term_defs]
@@ -822,18 +860,42 @@ class Grammar:
 
         assert len(rules) == len({name for name, _t, _o in rules}), "Whoops, name collision"
 
-        # 4. Compile tree to Rule objects
+        # 4. The precedence declarations (now every literal has a terminal)
+        term_reverse = anon_tokens_transf.term_reverse
+        precedence: Precedence = {}
+        for level, (assoc, tokens) in enumerate(self.precedence, start=1):
+            for token in tokens:
+                symbol = _precedence_name(token, term_reverse, 'after %' + assoc)
+                if symbol in precedence:
+                    raise GrammarError("The precedence of %s is declared twice" % token)
+                precedence[symbol] = (level, assoc)
+
+        # 5. Compile tree to Rule objects
         rule_tree_to_text = RuleTreeToText()
 
         simplify_rule = SimplifyRule_Visitor()
         compiled_rules: List[Rule] = []
+        prec_names: Set[str] = set()
         for rule_content in rules:
             name, tree, options = rule_content
             simplify_rule.visit(tree)
             expansions = rule_tree_to_text.transform(tree)
 
-            for i, (expansion, spec) in enumerate(expansions):
-                compiled_rules.append(Rule(NonTerminal(name), expansion, i, options, spec))
+            for i, (expansion, spec, prec_token) in enumerate(expansions):
+                prec = None
+                if prec_token is not None:
+                    prec = _precedence_name(prec_token, term_reverse, 'after %%prec in rule %s' % name)
+                    if prec not in precedence:
+                        raise GrammarError("%s after %%prec in rule %s has no precedence" % (prec_token, name))
+                    prec_names.add(prec)
+                compiled_rules.append(Rule(NonTerminal(name), expansion, i, options, spec, prec))
+
+        # A name in a precedence declaration that is not a terminal is only useful after %prec
+        terminal_names = {t.name for t in terminals} | {name for name, _ in term_defs}
+        for assoc, tokens in self.precedence:
+            for token in tokens:
+                if token.type == 'TERMINAL' and token.value not in terminal_names and token.value not in prec_names:
+                    raise GrammarError("%s after %%%s is neither a terminal nor used after %%prec" % (token, assoc))
 
         # Remove duplicates of empty rules, throw error for non-empty duplicates
         if len(set(compiled_rules)) != len(compiled_rules):
@@ -869,7 +931,7 @@ class Grammar:
             if unused:
                 logger.debug("Unused terminals: %s", [t.name for t in unused])
 
-        return terminals, compiled_rules, self.ignore
+        return terminals, compiled_rules, self.ignore, precedence
 
 
 PackageResource = namedtuple('PackageResource', 'pkg_name path')
@@ -1017,6 +1079,17 @@ GRAMMAR_ERRORS = [
         # found in the same state as an error in an alternative of a rule.
         ('The elements of a list after %ignore cannot contain "|" or "->"',
          ['%ignore A, B | C\n', '%ignore A, B -> c\n', '%ignore A, B, C | D\n', '%ignore A, B, C -> d\n']),
+        # The stack has a different height after the first symbol, after later symbols, and after a comma.
+        ('%left, %right, %nonassoc, and %precedence expect literals and terminals',
+         ['%left\n', '%left "a" b\n', '%left A b\n', '%left "a" "b" c\n', '%left "a" B c\n', '%left "a", b\n',
+          '%left "a", "b" c\n', '%left "a", B c\n']),
+        ('%prec expects a literal or a terminal', ['a: b %prec\n', 'a: b | c %prec\n']),
+        ('Only an alias (->) or %ignore can follow the symbol after %prec',
+         ['a: b %prec A B\n', 'a: b %prec "a" B\n', 'a: b | c %prec A B\n', 'a: b | c %prec "a" B\n']),
+        ('%prec has to be given before an alias (->) or %ignore',
+         ['a: b -> c %prec A\n', 'a: b -> "c" %prec A\n', 'a: b %ignore "x" %prec A\n',
+          'a: b %ignore "x", "y" %prec A\n', 'a: b | c -> d %prec A\n', 'a: b | c -> "d" %prec A\n',
+          'a: b | c %ignore "x" %prec A\n', 'a: b | c %ignore "x", "y" %prec A\n']),
     ]
 
 # An error only matches an example if the parser's stack has the same height.  The stack is one symbol
@@ -1032,6 +1105,7 @@ _TOKEN_SPECIFIC_ERRORS = {
     'Unexpected colon':              {'_COLON'},
     'Misplaced operator':            {'OP'},
     'The elements of a list after %ignore cannot contain "|" or "->"': {'_OR', '_NL_OR', '_TO'},
+    '%prec has to be given before an alias (->) or %ignore': {'_PREC'},
 }
 
 def _translate_parser_exception(parse, e):
@@ -1114,6 +1188,7 @@ class GrammarBuilder:
     _ignore_names: List[str]
     _ast_ignore: List[str]
     _first_rule: Optional[str]
+    _precedence: List[Tuple[str, List[Token]]]
 
     def __init__(self, import_paths: Optional[List[Union[str, Callable]]]=None, used_files: Optional[Dict[str, str]]=None) -> None:
         self.import_paths = import_paths or []
@@ -1123,6 +1198,7 @@ class GrammarBuilder:
         self._ignore_names: List[str] = []
         self._ast_ignore: List[str] = []
         self._first_rule: Optional[str] = None
+        self._precedence: List[Tuple[str, List[Token]]] = []
 
     def _grammar_error(self, is_term, msg, *names):
         args = {}
@@ -1298,6 +1374,11 @@ class GrammarBuilder:
                 # Like %ignore, this only applies to the toplevel grammar
                 if mangle is None:
                     self._ast_ignore.extend(_literal_text(t) for t in stmt.children)
+            elif stmt.data == 'precedence':
+                # Like %ignore, precedence declarations only apply to the toplevel grammar
+                if mangle is None:
+                    assoc, *symbols = stmt.children
+                    self._precedence.append((assoc.value[1:], symbols))
             elif stmt.data == 'declare':
                 for symbol in stmt.children:
                     assert isinstance(symbol, Symbol), symbol
@@ -1396,7 +1477,8 @@ class GrammarBuilder:
                 term_defs.append((name, (d.tree, d.options)))
             else:
                 rule_defs.append((name, d.tree, d.options))
-        return Grammar(rule_defs, term_defs, self._ignore_names, self._ast_ignore, self._first_rule)
+        return Grammar(rule_defs, term_defs, self._ignore_names, self._ast_ignore, self._first_rule,
+                       self._precedence)
 
 
 def load_grammar(grammar: str, source: str, import_paths: List[Union[str, Callable]]) -> Tuple[Grammar, Dict[str, str]]:

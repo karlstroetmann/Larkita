@@ -36,8 +36,9 @@ class Larkita:
             the same abstract syntax trees, but it may detect syntax errors a few reductions later.
 
     The output file is always written, even if the grammar has unresolved conflicts.  In that case
-    a GrammarError is raised afterwards.  Shift/reduce conflicts are resolved in favour of shift and
-    reported with a ConflictWarning.
+    a GrammarError is raised afterwards.  Shift/reduce conflicts are resolved by the precedence
+    declarations (%left, %right, %nonassoc, %precedence, and %prec) as in bison.  The remaining
+    shift/reduce conflicts are resolved in favour of shift and reported with a ConflictWarning.
     """
 
     source_path: Optional[str]
@@ -76,7 +77,7 @@ class Larkita:
             raise GrammarError("The grammar does not contain any rules")
         self.start = start
 
-        self.terminals, self.rules, self.ignore_tokens = self.grammar.compile([start], ())
+        self.terminals, self.rules, self.ignore_tokens, precedence = self.grammar.compile([start], ())
 
         if out_file is None:
             out_file = os.path.splitext(source_path)[0] + '.out' if source_path else 'grammar.out'
@@ -84,7 +85,7 @@ class Larkita:
 
         self.lexer_conf = LexerConf(self.terminals, re_module, self.ignore_tokens, g_regex_flags)
         collision = token_collisions(self.lexer_conf) if lexer == 'contextual' else None
-        analyzer = LR1Analyzer(self.rules, start, merge_states, collision)
+        analyzer = LR1Analyzer(self.rules, start, merge_states, collision, precedence)
         self.parse_table = analyzer.parse_table
         self.conflicts = analyzer.conflicts
         terminal_names = {t.name: t.user_repr() for t in self.terminals}
@@ -96,7 +97,7 @@ class Larkita:
                                % (len(unresolved), out_file,
                                   '\n'.join('  * state %d on %s' % (c.state, terminal_names.get(c.terminal, c.terminal))
                                             for c in unresolved)))
-        shift_reduce = [c for c in self.conflicts if c.shift_state is not None]
+        shift_reduce = [c for c in self.conflicts if c.shift_state is not None and c.precedence is None]
         if shift_reduce:
             # The warning refers to the first line outside of Larkita, also when Larkita.open is called.
             warnings.warn("%d shift/reduce conflict(s) were resolved as shift, see %s" % (len(shift_reduce), out_file),

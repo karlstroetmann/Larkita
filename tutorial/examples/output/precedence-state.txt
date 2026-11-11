@@ -1,0 +1,41 @@
+State 19
+
+    (1)  expr → expr • "<" expr   { "*", "+", "-", "/", "<", "==", "^", $END }
+    (2)  expr → expr • "==" expr  { "*", "+", "-", "/", "<", "==", "^", $END }
+    (3)  expr → expr • "+" expr   { "*", "+", "-", "/", "<", "==", "^", $END }
+    (3)  expr → expr "+" expr •   { "*", "+", "-", "/", "<", "==", "^", $END }
+    (4)  expr → expr • "-" expr   { "*", "+", "-", "/", "<", "==", "^", $END }
+    (5)  expr → expr • "*" expr   { "*", "+", "-", "/", "<", "==", "^", $END }
+    (6)  expr → expr • "/" expr   { "*", "+", "-", "/", "<", "==", "^", $END }
+    (7)  expr → expr • "^" expr   { "*", "+", "-", "/", "<", "==", "^", $END }
+
+    "*"   shift and go to state 9
+    "/"   shift and go to state 10
+    "^"   shift and go to state 11
+    "+"   reduce using rule (3) expr → expr "+" expr
+    "-"   reduce using rule (3) expr → expr "+" expr
+    "<"   reduce using rule (3) expr → expr "+" expr
+    "=="  reduce using rule (3) expr → expr "+" expr
+    $END  reduce using rule (3) expr → expr "+" expr
+
+    shift/reduce conflict on "*", resolved as shift ("+" < "*")
+        - shift and go to state 9
+        - reduce using rule (3) expr → expr "+" expr
+    shift/reduce conflict on "+", resolved as reduce (%left "+")
+        - shift and go to state 7
+        - reduce using rule (3) expr → expr "+" expr
+    shift/reduce conflict on "-", resolved as reduce (%left "-")
+        - shift and go to state 8
+        - reduce using rule (3) expr → expr "+" expr
+    shift/reduce conflict on "/", resolved as shift ("+" < "/")
+        - shift and go to state 10
+        - reduce using rule (3) expr → expr "+" expr
+    shift/reduce conflict on "<", resolved as reduce ("<" < "+")
+        - shift and go to state 5
+        - reduce using rule (3) expr → expr "+" expr
+    shift/reduce conflict on "==", resolved as reduce ("==" < "+")
+        - shift and go to state 6
+        - reduce using rule (3) expr → expr "+" expr
+    shift/reduce conflict on "^", resolved as shift ("+" < "^")
+        - shift and go to state 11
+        - reduce using rule (3) expr → expr "+" expr

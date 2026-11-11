@@ -169,7 +169,8 @@ The following points make the rules above precise.
     * `%ignore: "(", ")", "{", "}"` (with a colon) on its own line: these literals
       are dropped from the abstract syntax trees of *all* rules.
 
-10. **Conflicts.**  Shift/reduce conflicts are resolved in favour of shift and
+10. **Conflicts.**  Shift/reduce conflicts are resolved by the precedence declarations
+    (see 14).  The remaining shift/reduce conflicts are resolved in favour of shift and
     reported as a warning.  Reduce/reduce conflicts are errors (unless the rules
     have different priorities).  All conflicts are listed in the output file.
 
@@ -190,6 +191,21 @@ The following points make the rules above precise.
     accepts the same strings and builds the same trees.  By default, states are not
     merged, so the output file shows the canonical LR(1) automaton.
 
+14. **Precedence.**  As in bison, `%left`, `%right`, `%nonassoc`, and `%precedence`
+    (each on its own line) list literals and terminals, optionally separated by commas.
+    Every declaration is a new level with a higher precedence than the ones above it.
+    A rule has the precedence of its last terminal (also if only an earlier terminal
+    has a precedence), unless `%prec NAME` is written after the alternative, in front of
+    an alias or `%ignore`.  `NAME` may be a name that is not a terminal (e.g. `UMINUS`);
+    such a name must be used after `%prec`.  A shift/reduce conflict between a rule and a
+    look-ahead token that both have a precedence is resolved by the higher precedence; on
+    the same level, `%left` reduces, `%right` shifts, `%nonassoc` makes the token a
+    syntax error (an explicit error entry in the table, so that merging states keeps it),
+    and `%precedence` does not resolve the conflict.  Conflicts resolved by precedence
+    cause no warning; the output file gives the reason in the words of bison, e.g.
+    `resolved as shift ("+" < "*")`.  Precedence declarations in imported grammars are
+    ignored.
+
 ## Scope
 
 * The package is called `larkita`; `Larkita(grammar).parse(text)` returns a tuple.
@@ -209,10 +225,12 @@ The following points make the rules above precise.
 * `larkita/load_grammar.py`: grammar loader; `_make_ast_spec` computes the head of an alternative,
   after `_expand_alternatives` has expanded its inner alternatives and `_mark_child_literals` has
   marked the literals that become children (clarification 5).
-* `larkita/lr_analysis.py`: canonical LR(1) automaton, parse table, conflict resolution, and the
-  optional merging of states (`_merge_states`).
+* `larkita/lr_analysis.py`: canonical LR(1) automaton, parse table, conflict resolution (including
+  the precedence declarations, `_resolve_shift_reduce`), and the optional merging of states (`_merge_states`).
+  `load_grammar.Grammar.compile` turns the precedence declarations into a dictionary from terminal names
+  to levels and associativities; `Rule.prec` is the symbol after `%prec`.
 * `larkita/ast_builder.py`: the reduction callbacks that build the nested tuples.
-* `larkita/report.py`: writes the output file (including the section "Merged states").
+* `larkita/report.py`: writes the output file (including the sections "Precedence" and "Merged states").
 * `larkita/lr_parser.py`, `larkita/lexer.py`, `larkita/parser_frontends.py`: the runtime.
   `lexer.token_collisions` decides whether merging states could change the tokens of the
   contextual lexer.
@@ -226,8 +244,7 @@ The following points make the rules above precise.
 
 ## Handoff: state of the work and how to continue
 
-Last updated on 2026-10-31.  Everything described here is committed and pushed; there are no
-pending tasks.  The memory of earlier Claude Code sessions is only stored on the home computer
+Last updated on 2026-11-12.  The memory of earlier Claude Code sessions is only stored on the home computer
 (under the old directory name `simple-lark`), so this section is the reference.
 
 ### Repositories
@@ -309,6 +326,17 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
     is listed in `Python/Chapter-08/.gitignore`.  The listings of these grammars in the lecture notes show
     the contents of the files.  Version 0.5.1 makes the `ConflictWarning` refer to the first line outside of
     Larkita (`skip_file_prefixes`); with `stacklevel=2`, the warning pointed into `Larkita.open`.
+13. Version 0.6.0 adds the precedence declarations of bison (clarification 14).  Released on 2026-11-12.
+    The semantics were checked against bison (2.3, the version of macOS): a rule takes the precedence of
+    its last terminal, and the reasons in the output file use bison's words.  The tutorial explains them in
+    the subsection "Precedence and associativity" with `examples/precedence.g`.  The Pygments lexer
+    highlights the new keywords; its copies in the tutorial and in the lecture notes were updated, too.
+    In the course, section 11.3 "Precedence Declarations" of the lecture notes explains them with the new
+    notebook `Python/Chapter-11/03-Precedence-Declarations.ipynb` (the notebooks 03-06 of chapter 11 became
+    04-07), and the compiler of chapter 13 declares the precedences of its operators instead of stratifying
+    the grammar (`Python/Chapter-13/Grammar/bool-expr.lark` and `expr.lark`; the trees and the generated
+    code are the same as before).  The dangling `else` of the compiler is still resolved as shift with a
+    warning.
 
 ### Constraints
 
@@ -325,7 +353,7 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 
 ### How to check the work
 
-* Larkita: `python3 -m tests` (69 tests; the 3 tests of the lexers are skipped without Pygments) and
+* Larkita: `python3 -m tests` (85 tests; the 3 tests of the lexers are skipped without Pygments) and
   `mypy larkita`, which needs the stubs `types-Pygments`.
 * Tutorial: `cd tutorial && make`.  The build must have no errors and no overfull boxes.  The only
   accepted warnings are the two hyperref warnings "Token not allowed in a PDF string", which come from
@@ -349,6 +377,9 @@ pending tasks.  The memory of earlier Claude Code sessions is only stored on the
 * `merge_states` was verified by fuzzing: token sequences of sample programs were mutated (deleted,
   duplicated, swapped, replaced tokens), and the canonical and the merged parser had to return the
   same trees and report errors at the same line and column.  Repeat this if the merging code changes.
+  For version 0.6.0, this was repeated with grammars that use precedence declarations (including
+  `%nonassoc` and a dangling `else` resolved with `%prec`); a variant that drops the error entries of
+  `%nonassoc` from the comparison of states was caught at once.
 
 ### Setting up another computer
 
