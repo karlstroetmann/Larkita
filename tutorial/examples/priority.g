@@ -2,12 +2,14 @@
 
 stmnt: decl ";"
      | expr ";"
+     ;
 
 decl: NAME NAME     -> "decl"
     | NAME          -> "type"
+    ;
 
-expr.2: NAME        -> "var"
+expr.2: NAME        -> "var";
 
-%import common.CNAME -> NAME
-%import common.WS
-%ignore WS
+%import common.CNAME -> NAME;
+%import common.WS;
+%ignore WS;

@@ -11,7 +11,7 @@ from ast import literal_eval
 from typing import List, Tuple, Union, Callable, Dict, Optional, Sequence, Set
 
 from .utils import bfs, logger, classify_bool, is_id_continue, is_id_start, small_factors, OrderedSet
-from .lexer import Token, TerminalDef, PatternStr, PatternRE, Pattern
+from .lexer import Token, TerminalDef, PatternStr, PatternRE, Pattern, LexerThread
 
 from .parse_tree_builder import ParseTreeBuilder
 from .parser_frontends import ParsingFrontend
@@ -87,11 +87,9 @@ TERMINALS = {
     'TERMINAL': '_?[A-Z][_A-Z0-9]*',
     'STRING': r'"(\\"|\\\\|[^"\n])*?"i?',
     'REGEXP': r'/(?!/)(\\/|\\\\|[^/])*?/[%s]*' % _RE_FLAGS,
-    '_NL': r'(\r?\n)+\s*',
-    '_NL_OR': r'(\r?\n)+\s*\|',
-    'WS': r'[ \t]+',
-    'COMMENT': r'\s*//[^\n]*|\s*#[^\n]*',
-    'BACKSLASH': r'\\[ ]*\n',
+    '_SEMICOLON': ';',
+    'WS': r'\s+',
+    'COMMENT': r'//[^\n]*|#[^\n]*',
     '_TO': '->',
     '_IGNORE': r'%ignore',
     '_OVERRIDE': r'%override',
@@ -103,22 +101,22 @@ TERMINALS = {
     'NUMBER': r'[+-]?\d+',
 }
 
-# The meta-grammar uses Lark's tree-shaping conventions, see parse_tree_builder.py
+# The meta-grammar uses Lark's tree-shaping conventions, see parse_tree_builder.py.
+# Every statement ends with a semicolon, so line breaks are white space like blanks.
 RULES = {
-    'start': ['_list'],
+    'start': ['_list', ''],
     '_list':  ['_item', '_list _item'],
     '_item':  ['rule', 'term', 'ignore', 'ast_ignore', 'import', 'declare', 'override', 'extend',
-               'precedence', '_NL'],
+               'precedence'],
 
-    'rule': ['rule_modifiers RULE priority _COLON expansions _NL'],
+    'rule': ['rule_modifiers RULE priority _COLON expansions _SEMICOLON'],
     'rule_modifiers': ['RULE_MODIFIERS',
                        ''],
     'priority': ['_DOT NUMBER',
                  ''],
     'expansions': ['_expansions'],
     '_expansions': ['alias',
-                    '_expansions _OR alias',
-                    '_expansions _NL_OR alias'],
+                    '_expansions _OR alias'],
 
     # An alternative may end with an alias (-> name or -> "name"), or with the
     # literals that are ignored in its abstract syntax tree (%ignore "(", ")").
@@ -163,30 +161,30 @@ RULES = {
     'maybe': ['_LBRA expansions _RBRA'],
     'range': ['STRING _DOTDOT STRING'],
 
-    'term': ['TERMINAL _COLON expansions _NL',
-             'TERMINAL _DOT NUMBER _COLON expansions _NL'],
+    'term': ['TERMINAL _COLON expansions _SEMICOLON',
+             'TERMINAL _DOT NUMBER _COLON expansions _SEMICOLON'],
     'override': ['_OVERRIDE rule',
                  '_OVERRIDE term'],
     'extend': ['_EXTEND rule',
                '_EXTEND term'],
-    'ignore': ['_IGNORE expansions _NL',
-               '_IGNORE _ignore_list _NL'],
+    'ignore': ['_IGNORE expansions _SEMICOLON',
+               '_IGNORE _ignore_list _SEMICOLON'],
     # %ignore WS, COMMENT  --  several terminals that are skipped by the lexer.  The elements are
     # expansions without "|", so that the comma after the first one decides which form is meant.
     '_ignore_list': ['expansion _COMMA expansion',
                      '_ignore_list _COMMA expansion'],
     # %ignore: "(", ")"  --  literals that are ignored in the abstract syntax trees of all rules
-    'ast_ignore': ['_IGNORE _COLON _literals _NL'],
-    'declare': ['_DECLARE _declare_args _NL'],
+    'ast_ignore': ['_IGNORE _COLON _literals _SEMICOLON'],
+    'declare': ['_DECLARE _declare_args _SEMICOLON'],
     # %left "+" "-"  --  the precedence and associativity of literals and terminals, as in bison.
     # The commas between the symbols are optional.
-    'precedence': ['ASSOC _precedence_list _NL'],
+    'precedence': ['ASSOC _precedence_list _SEMICOLON'],
     '_precedence_list': ['_precedence_symbol',
                          '_precedence_list _precedence_symbol',
                          '_precedence_list _COMMA _precedence_symbol'],
     '_precedence_symbol': ['STRING', 'TERMINAL'],
-    # %import common.CNAME -> ID, common.WS  --  several imports in one line
-    'import': ['_IMPORT _import_list _NL'],
+    # %import common.CNAME -> ID, common.WS  --  several imports in one statement
+    'import': ['_IMPORT _import_list _SEMICOLON'],
     '_import_list': ['import_item', '_import_list _COMMA import_item'],
     'import_item': ['_import_path',
                     '_import_path _LPAR name_list _RPAR',
@@ -1054,48 +1052,48 @@ def _get_parser():
 
         callbacks = ParseTreeBuilder(rules, ST).create_callback()
         import re
-        lexer_conf = LexerConf(terminals, re, ['WS', 'COMMENT', 'BACKSLASH'])
+        lexer_conf = LexerConf(terminals, re, ['WS', 'COMMENT'])
         analyzer = LR1Analyzer(rules, 'start')
         assert all(c.resolved for c in analyzer.conflicts), analyzer.conflicts
         _get_parser.cache = ParsingFrontend(lexer_conf, analyzer.parse_table, callbacks, 'basic')
         return _get_parser.cache
 
 GRAMMAR_ERRORS = [
-        ('Incorrect type of value', ['a: 1\n']),
-        ('Unclosed parenthesis', ['a: (\n']),
-        ('Unmatched closing parenthesis', ['a: )\n', 'a: [)\n', 'a: (]\n']),
-        ('Expecting rule or terminal definition (missing colon)', ['a\n', 'A\n', 'a->\n', 'A->\n', 'a A\n']),
-        ('Illegal name for rules or terminals', ['Aa:\n']),
-        ('Unexpected colon', ['a::\n', 'a: b:\n', 'a: B:\n', 'a: "a":\n']),
-        ('Misplaced operator', ['a: b??', 'a: b(?)', 'a:+\n', 'a:?\n', 'a:*\n', 'a:|*\n']),
-        ('Expecting option ("|") or a new rule or terminal definition', ['a:a\n()\n']),
-        ('Terminal names cannot contain dots', ['A.B\n']),
+        ('Incorrect type of value', ['a: 1;']),
+        ('Unclosed parenthesis', ['a: (;']),
+        ('Unmatched closing parenthesis', ['a: );', 'a: [);', 'a: (];']),
+        ('Expecting rule or terminal definition (missing colon)', ['a;', 'A;', 'a->;', 'A->;', 'a A;']),
+        ('Illegal name for rules or terminals', ['Aa:;']),
+        # A colon after a name is reported by _missing_semicolon.
+        ('Unexpected colon', ['a::;', 'a: "a":;']),
+        ('Misplaced operator', ['a: b??;', 'a: b(?);', 'a:+;', 'a:?;', 'a:*;', 'a:|*;']),
+        ('Terminal names cannot contain dots', ['A.B;']),
         # This error is found before the previous statement is complete, so the examples need it.
-        ('Expecting rule or terminal definition', ['"a"\n', 'a: A\n"a"\n', 'A: "a"\n"a"\n',
-                                                   '%import common.A\n"a"\n', '%ignore A\n"a"\n']),
-        ('%import expects a name', ['%import "a"\n', '%import a.B, "a"\n', '%import a.B,\n']),
-        ('%ignore expects a value', ['%ignore %import\n']),
+        ('Expecting rule or terminal definition', ['"a";', 'a: A;"a";', 'A: "a";"a";',
+                                                   '%import common.A;"a";', '%ignore A;"a";']),
+        ('%import expects a name', ['%import "a";', '%import a.B, "a";', '%import a.B,;']),
+        ('%ignore expects a value', ['%ignore %import;']),
         # Only the elements after the first comma can be recognized:  An error in the first element is
         # found in the same state as an error in an alternative of a rule.
         ('The elements of a list after %ignore cannot contain "|" or "->"',
-         ['%ignore A, B | C\n', '%ignore A, B -> c\n', '%ignore A, B, C | D\n', '%ignore A, B, C -> d\n']),
+         ['%ignore A, B | C;', '%ignore A, B -> c;', '%ignore A, B, C | D;', '%ignore A, B, C -> d;']),
         # The stack has a different height after the first symbol, after later symbols, and after a comma.
         ('%left, %right, %nonassoc, and %precedence expect literals and terminals',
-         ['%left\n', '%left "a" b\n', '%left A b\n', '%left "a" "b" c\n', '%left "a" B c\n', '%left "a", b\n',
-          '%left "a", "b" c\n', '%left "a", B c\n']),
-        ('%prec expects a literal or a terminal', ['a: b %prec\n', 'a: b | c %prec\n']),
+         ['%left;', '%left "a" b;', '%left A b;', '%left "a" "b" c;', '%left "a" B c;', '%left "a", b;',
+          '%left "a", "b" c;', '%left "a", B c;']),
+        ('%prec expects a literal or a terminal', ['a: b %prec;', 'a: b | c %prec;']),
         ('Only an alias (->) or %ignore can follow the symbol after %prec',
-         ['a: b %prec A B\n', 'a: b %prec "a" B\n', 'a: b | c %prec A B\n', 'a: b | c %prec "a" B\n']),
+         ['a: b %prec A B;', 'a: b %prec "a" B;', 'a: b | c %prec A B;', 'a: b | c %prec "a" B;']),
         ('%prec has to be given before an alias (->) or %ignore',
-         ['a: b -> c %prec A\n', 'a: b -> "c" %prec A\n', 'a: b %ignore "x" %prec A\n',
-          'a: b %ignore "x", "y" %prec A\n', 'a: b | c -> d %prec A\n', 'a: b | c -> "d" %prec A\n',
-          'a: b | c %ignore "x" %prec A\n', 'a: b | c %ignore "x", "y" %prec A\n']),
+         ['a: b -> c %prec A;', 'a: b -> "c" %prec A;', 'a: b %ignore "x" %prec A;',
+          'a: b %ignore "x", "y" %prec A;', 'a: b | c -> d %prec A;', 'a: b | c -> "d" %prec A;',
+          'a: b | c %ignore "x" %prec A;', 'a: b | c %ignore "x", "y" %prec A;']),
     ]
 
 # An error only matches an example if the parser's stack has the same height.  The stack is one symbol
 # higher after the first statement of a grammar, so every example is also tried after another statement.
 _GRAMMAR_ERRORS_IN_ALL_POSITIONS = [
-    (label, [first + example for example in examples for first in ('', 'A: "a"\n')])
+    (label, [first + example for example in examples for first in ('', 'A: "a";')])
     for label, examples in GRAMMAR_ERRORS]
 
 # These messages name the token that is wrong, so they are only given for tokens of these types.
@@ -1104,9 +1102,43 @@ _TOKEN_SPECIFIC_ERRORS = {
     'Unmatched closing parenthesis': {'_RPAR', '_RBRA'},
     'Unexpected colon':              {'_COLON'},
     'Misplaced operator':            {'OP'},
-    'The elements of a list after %ignore cannot contain "|" or "->"': {'_OR', '_NL_OR', '_TO'},
+    'The elements of a list after %ignore cannot contain "|" or "->"': {'_OR', '_TO'},
     '%prec has to be given before an alias (->) or %ignore': {'_PREC'},
 }
+
+# The tokens that can only occur at the beginning of a statement
+_STATEMENT_KEYWORDS = {'_IMPORT', '_DECLARE', '_OVERRIDE', '_EXTEND', 'ASSOC', 'RULE_MODIFIERS'}
+
+def _missing_semicolon(text, e):
+    """Returns a message if the error is most likely caused by a statement that does not end with ";".
+    Without the ";", the parser reads the next statement as a continuation of the previous one:  A name
+    followed by a colon becomes a symbol of the previous rule, and %ignore introduces the literals that
+    are ignored in its last alternative.  The error is found later than the missing ";", so the
+    examples in GRAMMAR_ERRORS cannot describe it."""
+    token = e.token
+    if token.type == '$END':
+        if '_SEMICOLON' in e.expected:
+            return 'Expecting ";" at the end of the last statement'
+        return None
+    previous = None
+    for t in LexerThread.from_text(_get_parser().lexer, text).lex(None):
+        if t.start_pos >= token.start_pos:
+            break
+        previous = t
+    if previous is None:
+        return None
+    if token.type == '_COLON' and previous.type in ('RULE', 'TERMINAL'):
+        return 'Unexpected colon: is the ";" at the end of the previous statement missing?'
+    if previous.type == '_IGNORE' and e.expected == {'STRING'} and _at_line_start(text, previous):
+        return 'Expecting a literal after %ignore: is the ";" at the end of the previous statement missing?'
+    if ('_SEMICOLON' in e.expected and token.type in _STATEMENT_KEYWORDS | {'RULE', 'TERMINAL'}
+            and _at_line_start(text, token)):
+        return 'Expecting ";" at the end of the previous statement'
+    return None
+
+def _at_line_start(text, token):
+    "True if only white space precedes the token in its line"
+    return text[text.rfind('\n', 0, token.start_pos) + 1:token.start_pos].strip() == ''
 
 def _translate_parser_exception(parse, e):
         examples = [(label, examples) for label, examples in _GRAMMAR_ERRORS_IN_ALL_POSITIONS
@@ -1119,14 +1151,14 @@ def _translate_parser_exception(parse, e):
 
 def _parse_grammar(text, name):
     try:
-        tree = _get_parser().parse(text + '\n')
+        tree = _get_parser().parse(text)
     except UnexpectedCharacters as e:
         context = e.get_context(text)
         raise GrammarError("Unexpected input at line %d column %d in %s: \n\n%s" %
                            (e.line, e.column, name, context))
     except UnexpectedToken as e:
         context = e.get_context(text)
-        error = _translate_parser_exception(_get_parser().parse, e)
+        error = _missing_semicolon(text, e) or _translate_parser_exception(_get_parser().parse, e)
         if error:
             raise GrammarError("%s, at line %s column %s\n\n%s" % (error, e.line, e.column, context))
         raise

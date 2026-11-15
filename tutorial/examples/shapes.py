@@ -8,10 +8,10 @@ import os
 from larkita import Larkita
 
 LEXICAL = r'''
-%import common.CNAME -> NAME
-%import common.INT -> NUM
-%import common.WS
-%ignore WS
+%import common.CNAME -> NAME;
+%import common.INT -> NUM;
+%import common.WS;
+%ignore WS;
 '''
 
 
@@ -32,56 +32,62 @@ def show(name, grammar, *texts):
 
 
 show('head', r'''
-sum: NUM "+" NUM
+sum: NUM "+" NUM;
 ''', '1 + 2')
 
 show('heads', r'''
-assign: NAME ":=" NUM ";"
+assign: NAME ":=" NUM ";";
 ''', 'x := 1;')
 
 show('pass-through', r'''
 sum: sum "+" atom
    | atom
+   ;
 atom: NUM
     | NAME
+    ;
 ''', '42', 'x + 1', '1 + 2 + 3')
 
 show('rule-name', r'''
-program: stmnt*
-stmnt: NAME ";"
+program: stmnt*;
+stmnt: NAME ";";
 ''', 'a; b;', 'a;', '')
 
 show('flatten', r'''
-list: "[" NUM ("," NUM)* "]"
+list: "[" NUM ("," NUM)* "]";
 ''', '[1, 2, 3]', '[1]')
 
 show('optional', r'''
-ret: "return" [NUM] ";"
+ret: "return" [NUM] ";";
 ''', 'return 1;', 'return;')
 
 show('alternatives', r'''
 sum: sum ("+" | "-") NUM
    | NUM
+   ;
 ''', '1 - 2', '1 + 2 - 3')
 
 show('alternatives-repeated', r'''
-sum: NUM (("+" | "-") NUM)*
+sum: NUM (("+" | "-") NUM)*;
 ''', '1 - 2', '1 + 2 - 3', '1')
 
 show('ignore', r'''
 sum: sum "+" atom
    | atom
+   ;
 atom: "(" sum ")"    %ignore "(", ")"
     | NUM
+    ;
 ''', '(1 + 2) + 3', '((1))')
 
 show('ignore-global', r'''
-list: "[" NUM ("," NUM)* "]"
-%ignore: "[", "]", ","
+list: "[" NUM ("," NUM)* "]";
+%ignore: "[", "]", ",";
 ''', '[1, 2, 3]', '[1]')
 
 show('alias', r'''
 expr: NAME "(" NAME ")"    -> call
     | "-" NUM              -> "neg"
     | NUM "-" NUM
+    ;
 ''', 'f(x)', '-1', '2 - 1')

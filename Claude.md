@@ -12,7 +12,7 @@ It should satisfy the following specification:
 
   (a) The grammar rule
 
-        stmnt: IDENTIFIER ":=" expr ";"
+        stmnt: IDENTIFIER ":=" expr ";";
 
       should return an abstract syntax tree of the form
 
@@ -23,7 +23,7 @@ It should satisfy the following specification:
 
   (b) The grammar rule
 
-        stmnt: expr ";"
+        stmnt: expr ";";
 
       should return an abstract syntax tree of the form
 
@@ -33,7 +33,7 @@ It should satisfy the following specification:
 
   (c) The grammar rule
 
-        expr: expr "+" product
+        expr: expr "+" product;
 
       should return an abstract syntax tree of the form
 
@@ -43,7 +43,7 @@ It should satisfy the following specification:
 
   (d) The grammar rule
 
-        factor: "(" expr ")"    %ignore "(", ")"
+        factor: "(" expr ")"    %ignore "(", ")";
 
       should return the abstract syntax tree
 
@@ -54,7 +54,7 @@ It should satisfy the following specification:
 
   (e) In general, if we have a grammar rule of the form
 
-        a: X1 X2 ... Xn
+        a: X1 X2 ... Xn;
 
       then in order to decide the form of the abstract syntax tree that is returned we have to check
       which of the Xi are literal tokens that are enclosed in double quotes and that are not ignored.
@@ -64,7 +64,7 @@ It should satisfy the following specification:
 
   (f) The grammar rule
 
-        atom: IDENTIFIER "(" expr_list ")" -> "call"
+        atom: IDENTIFIER "(" expr_list ")" -> "call";
 
       should return the abstract syntax tree
 
@@ -72,7 +72,7 @@ It should satisfy the following specification:
 
   (g) The grammar rule
 
-        atom: IDENTIFIER
+        atom: IDENTIFIER;
 
       should return the abstract syntax tree
 
@@ -82,7 +82,7 @@ It should satisfy the following specification:
 
   (h) The grammar rule
 
-        expr_list: (expr ("," expr)*)
+        expr_list: (expr ("," expr)*);
 
       should return the abstract syntax tree
 
@@ -92,7 +92,7 @@ It should satisfy the following specification:
 
   (i) The grammar rule
 
-        set_expr: "{" expr ("," expr)* "}"
+        set_expr: "{" expr ("," expr)* "}";
 
       should return the abstract syntax tree
 
@@ -161,12 +161,12 @@ The following points make the rules above precise.
     mean the same.
 
 9.  **The three forms of `%ignore`.**
-    * `%ignore WS` (a named terminal on its own line): the lexer skips the token.
-      Several terminals can be listed, separated by commas: `%ignore WS, COMMENT`.  The elements of
+    * `%ignore WS;` (a named terminal in a statement of its own): the lexer skips the token.
+      Several terminals can be listed, separated by commas: `%ignore WS, COMMENT;`.  The elements of
       the list may be any expansions without `|` and without an alias, e.g. `/\s+/`.
     * `%ignore "(", ")"` written after an alternative: these literals are dropped
       from the abstract syntax tree of *that alternative*.
-    * `%ignore: "(", ")", "{", "}"` (with a colon) on its own line: these literals
+    * `%ignore: "(", ")", "{", "}";` (with a colon) in a statement of its own: these literals
       are dropped from the abstract syntax trees of *all* rules.
 
 10. **Conflicts.**  Shift/reduce conflicts are resolved by the precedence declarations
@@ -192,7 +192,7 @@ The following points make the rules above precise.
     merged, so the output file shows the canonical LR(1) automaton.
 
 14. **Precedence.**  As in bison, `%left`, `%right`, `%nonassoc`, and `%precedence`
-    (each on its own line) list literals and terminals, optionally separated by commas.
+    (each in a statement of its own) list literals and terminals, optionally separated by commas.
     Every declaration is a new level with a higher precedence than the ones above it.
     A rule has the precedence of its last terminal (also if only an earlier terminal
     has a precedence), unless `%prec NAME` is written after the alternative, in front of
@@ -205,6 +205,15 @@ The following points make the rules above precise.
     cause no warning; the output file gives the reason in the words of bison, e.g.
     `resolved as shift ("+" < "*")`.  Precedence declarations in imported grammars are
     ignored.
+
+15. **Semicolons.**  Every statement ends with a semicolon:  rules, definitions of terminals, and the
+    statements starting with `%` (`%import`, `%ignore`, `%declare`, `%override`, `%extend`, `%left`, ...).
+    Line breaks are white space.  (Until version 0.6.0, a statement ended at a line break, unless the next
+    line started with `|`, as in Lark.)  The layout used in all grammars: a statement on one line has the
+    `;` directly after its last token (`expr: NUMBER;`, `%ignore WS;`); a rule with several lines has the
+    `;` on a line of its own, in the column of the `|`.  A grammar error that is most likely caused by a
+    missing `;` gets a message that says so (`_missing_semicolon` in `load_grammar.py`):  Without the `;`,
+    the name of the next rule becomes a symbol of the previous one, so the error is found at its colon.
 
 ## Scope
 
@@ -244,7 +253,7 @@ The following points make the rules above precise.
 
 ## Handoff: state of the work and how to continue
 
-Last updated on 2026-11-12.  The memory of earlier Claude Code sessions is only stored on the home computer
+Last updated on 2026-11-15.  The memory of earlier Claude Code sessions is only stored on the home computer
 (under the old directory name `simple-lark`), so this section is the reference.
 
 ### Repositories
@@ -337,6 +346,15 @@ Last updated on 2026-11-12.  The memory of earlier Claude Code sessions is only 
     the grammar (`Python/Chapter-13/Grammar/bool-expr.lark` and `expr.lark`; the trees and the generated
     code are the same as before).  The dangling `else` of the compiler is still resolved as shift with a
     warning.
+14. Version 0.7.0 ends every statement of a grammar with a semicolon (clarification 15).  Not released yet.
+    All grammars were converted by a script that finds the ends of the statements with the terminals of the
+    old meta-grammar; for every converted grammar, the parse tree of the meta-grammar was compared with the
+    one of the original (identical for all files and test strings).  The tutorial's outputs, the automata
+    and the trees, did not change, except for the outputs of `shapes.py`, which repeat the grammars.  The
+    Pygments lexer treats `;` as punctuation (before, it was an error token).  In the course, all grammar
+    files, the grammars in the notebooks, and the listings in the lecture notes were converted in the same way;
+    the grammars for grammars of chapters 9 and 10 no longer need the token `RULE_NAME` (item 10), since the
+    `;` tells the parser where a rule ends.  The line numbers cited in the lecture notes were adapted.
 
 ### Constraints
 

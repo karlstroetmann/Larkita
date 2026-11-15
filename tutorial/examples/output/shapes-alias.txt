@@ -1,6 +1,7 @@
 expr: NAME "(" NAME ")"    -> call
     | "-" NUM              -> "neg"
     | NUM "-" NUM
+    ;
 
 'f(x)'  ⇒ ('call', ('NAME', 'f'), ('NAME', 'x'))
 '-1'    ⇒ ('neg', ('NUM', '1'))

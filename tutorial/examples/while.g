@@ -1,33 +1,38 @@
 // A grammar for a small imperative language.
 
-program: stmnt*
+program: stmnt*;
 
 stmnt: IDENTIFIER ":=" expr ";"
      | "print" "(" expr ")" ";"
      | "if" "(" cond ")" stmnt "else" stmnt    -> "if"
      | "while" "(" cond ")" stmnt
      | "{" stmnt* "}"                          -> block
+     ;
 
 cond: expr "==" expr
     | expr "!=" expr
     | expr "<"  expr
     | expr "<=" expr
+    ;
 
 expr: expr "+" product
     | expr "-" product
     | product
+    ;
 
 product: product "*" factor
        | product "/" factor
        | product "%" factor
        | factor
+       ;
 
 factor: "(" expr ")"
       | NUMBER
       | IDENTIFIER
+      ;
 
-%ignore: "(", ")", "{", "}", ";"
+%ignore: "(", ")", "{", "}", ";";
 
-%import common.CNAME -> IDENTIFIER, common.INT -> NUMBER
-%import common.CPP_COMMENT, common.WS
-%ignore CPP_COMMENT, WS
+%import common.CNAME -> IDENTIFIER, common.INT -> NUMBER;
+%import common.CPP_COMMENT, common.WS;
+%ignore CPP_COMMENT, WS;

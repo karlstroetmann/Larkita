@@ -14,8 +14,8 @@ Larkita is a light-weight version of the Python parser generator
   conflicts easy to debug.
 
 Grammars are written in Lark's EBNF notation, with a few additions for building
-the abstract syntax tree.  The precedence and associativity of operators can be
-declared as in bison.
+the abstract syntax tree.  Unlike in Lark, every rule ends with a semicolon.  The
+precedence and associativity of operators can be declared as in bison.
 
 ## Installation
 
@@ -41,23 +41,27 @@ from larkita import Larkita
 grammar = r'''
 stmnt: IDENTIFIER ":=" expr ";"
      | expr ";"
+     ;
 
 expr: expr "+" product
     | expr "-" product
     | product
+    ;
 
 product: product "*" factor
        | product "/" factor
        | factor
+       ;
 
 factor: "(" expr ")"    %ignore "(", ")"
       | NUMBER
       | IDENTIFIER
+      ;
 
-%import common.CNAME -> IDENTIFIER
-%import common.NUMBER
-%import common.WS
-%ignore WS
+%import common.CNAME -> IDENTIFIER;
+%import common.NUMBER;
+%import common.WS;
+%ignore WS;
 '''
 
 parser = Larkita(grammar)
@@ -98,19 +102,19 @@ quotes form the **head** of the tuple; all other symbols become its **children**
 
 | Grammar | Abstract syntax tree |
 |---|---|
-| `expr: expr "+" product` | `("+", ast(expr), ast(product))` |
-| `stmnt: expr ";"` | `(";", ast(expr))` |
-| `stmnt: IDENTIFIER ":=" expr ";"` | `((":=", ";"), ("IDENTIFIER", name), ast(expr))` |
-| `atom: IDENTIFIER` | `("IDENTIFIER", name)` |
-| `expr: product` | `ast(product)` |
-| `factor: "(" expr ")"  %ignore "(", ")"` | `ast(expr)` |
-| `atom: IDENTIFIER "(" args ")" -> "call"` | `("call", ("IDENTIFIER", name), ast(args))` |
-| `args: expr ("," expr)*` | `(",", ast(expr_1), ..., ast(expr_n))` |
-| `set: "{" expr ("," expr)* "}"` | `(("{", ",", "}"), ast(expr_1), ..., ast(expr_n))` |
-| `program: statement*` | `("program", ast(statement_1), ..., ast(statement_n))` |
-| `stmnt: "return" [expr] ";"` | `(("return", ";"),)` or `(("return", ";"), ast(expr))` |
-| `expr: expr ("+" \| "-") product` | `("+", ast(expr), ast(product))` or `("-", ast(expr), ast(product))` |
-| `expr: product (("+" \| "-") product)*` | `("expr", ast(product_1), "-", ast(product_2), ...)` |
+| `expr: expr "+" product;` | `("+", ast(expr), ast(product))` |
+| `stmnt: expr ";";` | `(";", ast(expr))` |
+| `stmnt: IDENTIFIER ":=" expr ";";` | `((":=", ";"), ("IDENTIFIER", name), ast(expr))` |
+| `atom: IDENTIFIER;` | `("IDENTIFIER", name)` |
+| `expr: product;` | `ast(product)` |
+| `factor: "(" expr ")"  %ignore "(", ")";` | `ast(expr)` |
+| `atom: IDENTIFIER "(" args ")" -> "call";` | `("call", ("IDENTIFIER", name), ast(args))` |
+| `args: expr ("," expr)*;` | `(",", ast(expr_1), ..., ast(expr_n))` |
+| `set: "{" expr ("," expr)* "}";` | `(("{", ",", "}"), ast(expr_1), ..., ast(expr_n))` |
+| `program: statement*;` | `("program", ast(statement_1), ..., ast(statement_n))` |
+| `stmnt: "return" [expr] ";";` | `(("return", ";"),)` or `(("return", ";"), ast(expr))` |
+| `expr: expr ("+" \| "-") product;` | `("+", ast(expr), ast(product))` or `("-", ast(expr), ast(product))` |
+| `expr: product (("+" \| "-") product)*;` | `("expr", ast(product_1), "-", ast(product_2), ...)` |
 
 In detail:
 
@@ -122,18 +126,18 @@ In detail:
   Literals inside repetitions, optional parts and groups belong to the head, too,
   except for the literals of inner alternatives inside repetitions and optional parts.
 * **Inner alternatives** like `("+" | "-")` abbreviate several alternatives:
-  `expr: expr ("+" | "-") product` means `expr: expr "+" product | expr "-" product`,
+  `expr: expr ("+" | "-") product;` means `expr: expr "+" product | expr "-" product;`,
   so the literal that has been read is the head.  Inside a repetition or an optional
   part, and in an alternative with an alias, the head cannot depend on the input.
   There, the literal that has been read becomes a child of the tuple, as a plain
   string: `1 - 2 + 3` yields `("expr", ast(1), "-", ast(2), "+", ast(3))` with the
-  rule `expr: product (("+" | "-") product)*`.
+  rule `expr: product (("+" | "-") product)*;`.
 * **Named tokens** become `(NAME, text)`, e.g. `("NUMBER", "42")`.  The text is
   not converted.  Inline regular expressions `/.../` are treated like named tokens.
 * **Pass-through.**  If an alternative has no head and consists of exactly one
   symbol (with no `*`, `+`, `?`, `[...]` or `|`), it returns the abstract syntax
   tree of that symbol unchanged.  Inner alternatives are expanded first, so
-  `a: (b | "-" b)` passes the abstract syntax tree of `b` through.
+  `a: (b | "-" b);` passes the abstract syntax tree of `b` through.
 * **Rule name as head.**  If an alternative has no head and is not a pass-through,
   the name of the rule is used as head, e.g. `("program", ...)`.  An empty
   alternative yields `("rule_name",)`.
@@ -146,20 +150,33 @@ In detail:
 `%ignore` has three forms:
 
 ```
-%ignore WS                      // the lexer skips the terminal WS
-%ignore WS, COMMENT             // the lexer skips the terminals WS and COMMENT
-factor: "(" expr ")"  %ignore "(", ")"
+%ignore WS;                     // the lexer skips the terminal WS
+%ignore WS, COMMENT;            // the lexer skips the terminals WS and COMMENT
+factor: "(" expr ")"  %ignore "(", ")";
                                 // "(" and ")" are left out of the head of this alternative
-%ignore: "(", ")", "{", "}"     // these literals are left out of the heads of all rules
+%ignore: "(", ")", "{", "}";    // these literals are left out of the heads of all rules
 ```
 
-With `%ignore: "(", ")"`, the rule
-`statement: "while" "(" expr ")" statement` yields
+With `%ignore: "(", ")";`, the rule
+`statement: "while" "(" expr ")" statement;` yields
 `("while", ast(expr), ast(statement))`.
 
 ## Grammar syntax
 
-Larkita reads Lark grammars:
+Larkita reads Lark grammars, except that every statement ends with a semicolon:
+
+* Every rule, every definition of a terminal, and every statement that starts with
+  `%` (like `%import` and `%ignore`) ends with `;`.  Line breaks are white space,
+  so a rule may span several lines and several rules may share a line.  A rule
+  with several alternatives is usually written with one alternative per line and
+  the semicolon on a line of its own:
+
+  ```
+  expr: expr "+" product
+      | expr "-" product
+      | product
+      ;
+  ```
 
 * Rules have lowercase names, terminals have uppercase names.
 * `|` separates alternatives, `( ... )` groups, `[ ... ]` and `?` mark optional
@@ -172,15 +189,15 @@ Larkita reads Lark grammars:
 * `%import common.NUMBER` imports terminals from Lark's standard library
   (`larkita/grammars/common.lark`), and `%import .file.rule` imports from a
   grammar file next to the current one.  `-> NAME` renames an import.  Several
-  imports are separated by commas: `%import common.CNAME -> ID, common.INT, common.WS`.
+  imports are separated by commas: `%import common.CNAME -> ID, common.INT, common.WS;`.
 * `%left`, `%right`, `%nonassoc`, `%precedence` and `%prec` declare the
   precedence of operators as in bison (see [Operator precedence](#operator-precedence)).
 * `%declare`, `%extend` and `%override` work as in Lark.
 * `//` starts a comment.
 
-Not supported (compared with Lark): the rule modifiers `?rule` and `!rule`,
-templates, post-lexers (such as Lark's `Indenter`), lexer callbacks, and
-transformers.  Rules and terminals whose names start with `_` are not inlined
+Not supported (compared with Lark): statements that end at a line break, the
+rule modifiers `?rule` and `!rule`, templates, post-lexers (such as Lark's
+`Indenter`), lexer callbacks, and transformers.  Rules and terminals whose names start with `_` are not inlined
 or filtered.
 
 ## The output file
@@ -230,16 +247,17 @@ Ambiguous grammars for expressions are made unambiguous by declaring the
 precedence and associativity of the operators, as in bison:
 
 ```
-%nonassoc "<" "=="
-%left "+" "-"
-%left "*" "/"
-%precedence UMINUS
-%right "^"
+%nonassoc "<" "==";
+%left "+" "-";
+%left "*" "/";
+%precedence UMINUS;
+%right "^";
 
 expr: expr ("<" | "==" | "+" | "-" | "*" | "/" | "^") expr
     | "-" expr          %prec UMINUS -> "neg"
     | "(" expr ")"      %ignore "(", ")"
     | NUMBER
+    ;
 ```
 
 * Every declaration lists literals and terminals (commas between them are

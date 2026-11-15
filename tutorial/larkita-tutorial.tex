@@ -115,7 +115,7 @@
       Every item of a state is annotated with its look-ahead tokens.
 \end{enumerate}
 Grammars are written in the EBNF notation of \Lark, with a few additions that control the shape of the
-abstract syntax trees.  Furthermore, the precedence and the associativity of operators can be declared as in
+abstract syntax trees.  Unlike in \Lark, every rule ends with a semicolon.  Furthermore, the precedence and the associativity of operators can be declared as in
 the parser generator \href{https://www.gnu.org/software/bison/}{\textsl{Bison}}.
 
 \subsection{Installation}
@@ -143,25 +143,29 @@ expressions.
 \begin{itemize}
 \item Line 1 is a comment.  Comments start with «\verb|//|» and extend to the end of the line.
 \item A \blue{rule} consists of the name of a syntactical variable, a colon, and a list of
-      \blue{alternatives} that are separated by the character «\verb+|+».  The names of syntactical variables
-      are written in lower case.  The first rule defines the \blue{start symbol} of the grammar, which is
-      \texttt{stmnt} in this case.
+      \blue{alternatives} that are separated by the character «\verb+|+».  Every rule ends with a semicolon
+      «\verb|;|».  Line breaks have no meaning, but the grammars in this tutorial write every alternative
+      on a line of its own and the semicolon of a rule with several alternatives on a line of its own, too.
+      The names of syntactical variables are written in lower case.  The first rule defines the
+      \blue{start symbol} of the grammar, which is \texttt{stmnt} in this case.
 \item Strings enclosed in double quotes like \verb|":="| or \verb|"+"| are \blue{literals}: They stand for
       exactly the characters written between the quotes.
 \item Names written in upper case like \texttt{IDENTIFIER} and \texttt{NUMBER} denote \blue{terminals}.
-      These terminals are defined in line 18 -- 20:  The command
+      These terminals are defined in line 22 -- 24:  The command
       \\[0.2cm]
       \hspace*{1.3cm}
-      \verb|%import common.CNAME -> IDENTIFIER|
+      \verb|%import common.CNAME -> IDENTIFIER;|
       \\[0.2cm]
       imports the terminal \texttt{CNAME} from the library \texttt{common.lark}, which is part of \Larkita,
       and renames it into \texttt{IDENTIFIER}.  \texttt{CNAME} matches names as they are used in the
       programming language \texttt{C}.  Similarly, \texttt{NUMBER} matches integers and floating point
       numbers, and \texttt{WS} matches white space.
-\item Line 21 tells the scanner to skip white space.
-\item The annotations «\verb|%ignore ";"|» in line 3 and «\verb|%ignore "(", ")"|» in line 14 are specific to
+\item Line 25 tells the scanner to skip white space.  Like rules, these commands end with a semicolon.
+\item The annotations «\verb|%ignore ";"|» in line 3 and «\verb|%ignore "(", ")"|» in line 17 are specific to
       \Larkita.  They tell \Larkita\ that the semicolon of an assignment and the parentheses should not
-      appear in the abstract syntax tree.  The semicolon in line 4 is kept:  It is the only literal of this
+      appear in the abstract syntax tree.  The literal \verb|";"| stands for the semicolon of the language,
+      while the semicolons that are not enclosed in quotes end the rules of the grammar.
+      The semicolon in line 4 is kept:  It is the only literal of this
       alternative, and without it the abstract syntax tree of the statement would just be the tree of the
       expression.  We will discuss «\verb|%ignore|» in Section \ref{sec:ast}.
 \end{itemize}
@@ -189,7 +193,9 @@ into the current directory.  The parameter \texttt{out\_file} sets another path.
 explains the output file.
 
 \section{Writing Grammars}
-\Larkita\ reads grammars in the EBNF notation of \Lark.  This section summarizes this notation.
+\Larkita\ reads grammars in the EBNF notation of \Lark, except that every rule, every definition of a
+terminal, and every command like «\verb|%import|» ends with a semicolon.  This section summarizes this
+notation.
 
 \subsection{Rules}
 The right hand side of a rule can use the following operators:
@@ -216,6 +222,7 @@ Alternatives are usually written on lines of their own.  An alternative may be e
 \begin{minted}{larkita_lexer.py:LarkitaLexer}
 args: expr ("," expr)*
     |
+    ;
 \end{minted}
 \end{unbreakable}
 describes a possibly empty list of expressions.  A rule can be given a \blue{priority} by appending a dot and
@@ -233,14 +240,14 @@ There are three ways to specify the tokens of a language:
       use literals, regular expressions, other terminals, and the operators shown above.  For example:
 \begin{unbreakable}
 \begin{minted}{larkita_lexer.py:LarkitaLexer}
-DIGIT:  "0".."9"
-INT:    DIGIT+
-FLOAT:  INT "." INT
-STRING: /"[^"]*"/
+DIGIT:  "0".."9";
+INT:    DIGIT+;
+FLOAT:  INT "." INT;
+STRING: /"[^"]*"/;
 \end{minted}
 \end{unbreakable}
       The notation \verb|"0".."9"| denotes a range of characters.  A terminal can be given a priority, as in
-      «\verb|FLOAT.2: INT "." INT|».  If two terminals match the input, the scanner prefers the terminal with
+      «\verb|FLOAT.2: INT "." INT;|».  If two terminals match the input, the scanner prefers the terminal with
       the higher priority.
 \end{enumerate}
 The library \texttt{common.lark} defines the following terminals, among others:
@@ -261,21 +268,21 @@ The library \texttt{common.lark} defines the following terminals, among others:
 \bottomrule
 \end{tabular}
 \end{center}
-They are imported with «\verb|%import common.NAME|».  The command
+They are imported with «\verb|%import common.NAME;|».  The command
 \\[0.2cm]
 \hspace*{1.3cm}
-\verb|%import common.NAME -> NEW_NAME|
+\verb|%import common.NAME -> NEW_NAME;|
 \\[0.2cm]
 also renames the terminal.  Several imports can be combined in one command, separated by commas:
 \\[0.2cm]
 \hspace*{1.3cm}
-\verb|%import common.CNAME -> NAME, common.INT, common.WS|
+\verb|%import common.CNAME -> NAME, common.INT, common.WS;|
 
 \subsection{The scanner}
 \label{sec:scanner}
-The scanner splits the input into tokens.  The command «\verb|%ignore NAME|» tells the scanner to skip the
+The scanner splits the input into tokens.  The command «\verb|%ignore NAME;|» tells the scanner to skip the
 tokens of the terminal \texttt{NAME}, e.g.~white space or comments.  Several terminals can be listed in one
-command, separated by commas, as in «\verb|%ignore WS, COMMENT|».  The method \texttt{lex} runs only the
+command, separated by commas, as in «\verb|%ignore WS, COMMENT;|».  The method \texttt{lex} runs only the
 scanner, which is useful when a grammar does not work as expected.  Figure \ref{fig:lex.py} shows an example.
 \pythonfile{lex.py}{The program \texttt{lex.py} splits a string into tokens.}
 The method \texttt{lex} returns an iterator over the tokens.  Every token has a type, a value, a line, and a
@@ -300,10 +307,10 @@ followed by some strings and their abstract syntax trees.  The examples are prod
 \texttt{shapes.py}, which adds the following terminal definitions to every grammar:
 \begin{unbreakable}
 \begin{minted}{larkita_lexer.py:LarkitaLexer}
-%import common.CNAME -> NAME
-%import common.INT -> NUM
-%import common.WS
-%ignore WS
+%import common.CNAME -> NAME;
+%import common.INT -> NUM;
+%import common.WS;
+%ignore WS;
 \end{minted}
 \end{unbreakable}
 
@@ -379,10 +386,10 @@ The following table summarizes the different forms of «\verb|%ignore|»:
 \toprule
 \textbf{Form}                    & \textbf{Effect} \\
 \midrule
-«\verb|%ignore WS|»                & the scanner skips the tokens of the terminal \texttt{WS} \\
-«\verb|%ignore WS, COMMENT|»       & the scanner skips the tokens of both terminals \\
+«\verb|%ignore WS;|»               & the scanner skips the tokens of the terminal \texttt{WS} \\
+«\verb|%ignore WS, COMMENT;|»      & the scanner skips the tokens of both terminals \\
 «\verb|a: ... %ignore "(", ")"|»   & the literals are removed from the head of this alternative \\
-«\verb|%ignore: "(", ")"|»         & the literals are removed from the heads of all alternatives \\
+«\verb|%ignore: "(", ")";|»        & the literals are removed from the heads of all alternatives \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -457,7 +464,7 @@ Our next example is an interpreter for a small imperative language with assignme
 statements, «\verb|if|» statements, «\verb|while|» loops, and blocks.  Its grammar \texttt{while.g} in Figure
 \ref{fig:while.g} shows how «\verb|%ignore:|» and aliases keep the abstract syntax tree small.
 \grammarfile{while.g}{The grammar \texttt{while.g} of a small imperative language.}
-Instead of ignoring literals in every alternative separately, line 29 removes parentheses, braces, and
+Instead of ignoring literals in every alternative separately, line 34 removes parentheses, braces, and
 semicolons from all heads.  Hence:
 \begin{itemize}
 \item An assignment «\verb|x := e;|» is represented as
@@ -470,9 +477,9 @@ semicolons from all heads.  Hence:
 \item A loop «\verb|while (c) s|» is represented as «\verb|('while', ast(c), ast(s))|».
 \item A block has no head left.  Without the alias in line 9, the rule name \texttt{stmnt} would be used as
       head.  With the alias, a block is represented as «\verb|('block', ast(s1), ..., ast(sn))|».
-\item The alternative «\verb|factor: "(" expr ")"|» in line 25 has no head and is therefore a pass-through.
+\item The alternative «\verb|factor: "(" expr ")"|» in line 29 has no head and is therefore a pass-through.
 \end{itemize}
-Line 33 and 35 tell the scanner to skip comments.  Figure \ref{fig:while.py:interpreter} shows the
+Lines 37 and 38 tell the scanner to skip comments.  Figure \ref{fig:while.py:interpreter} shows the
 interpreter.
 \codefigure[lastline = 40]{python3}{while.py}{fig:while.py:interpreter}{The interpreter \texttt{while.py},
   part 1: the evaluation of expressions and the execution of statements.}
@@ -596,7 +603,7 @@ The grammar \texttt{expr.g} in Figure \ref{fig:expr.g} needs three syntactical v
 both operators are left-associative.  The ambiguous rule
 \\[0.2cm]
 \hspace*{1.3cm}
-\verb!expr: expr ("+" | "*") expr | NUMBER!
+\verb!expr: expr ("+" | "*") expr | NUMBER;!
 \\[0.2cm]
 is shorter, but it has shift/reduce conflicts:  After reading «\verb|1 + 2|», the parser cannot decide whether
 it should reduce «\verb|1 + 2|» to an expression or shift the next operator.  If these conflicts are resolved
@@ -691,7 +698,7 @@ This conflict is solved by rewriting the grammar, so that the decision can be po
 \label{sec:priorities}
 A reduce/reduce conflict can also be resolved by giving one of the rules a higher priority.  In the grammar
 \texttt{priority.g} in Figure \ref{fig:priority.g}, a statement consisting of a single name could be both a
-declaration of a type without a variable and an expression.  The priority 2 in line 9 resolves this conflict
+declaration of a type without a variable and an expression.  The priority 2 in line 11 resolves this conflict
 in favour of the expression.  The program \texttt{priority.py} in Figure \ref{fig:priority.py} parses a
 declaration and an expression:
 \grammarfile{priority.g}{The grammar \texttt{priority.g} resolves a reduce/reduce conflict with a priority.}
@@ -805,21 +812,22 @@ A parser provides the following methods and attributes:
 
 \subsection{Grammar commands}
 \begin{itemize}
-\item «\verb|%import common.NAME|» imports a terminal from the library \texttt{common.lark}.
-\item «\verb|%import .file.NAME|» imports a rule or a terminal from the grammar \texttt{file.lark}, which is
+\item Every rule, every definition of a terminal, and every command ends with a semicolon «\verb|;|».
+\item «\verb|%import common.NAME;|» imports a terminal from the library \texttt{common.lark}.
+\item «\verb|%import .file.NAME;|» imports a rule or a terminal from the grammar \texttt{file.lark}, which is
       stored in the directory of the current grammar.
 \item «\verb|-> NEW_NAME|» at the end of an import renames the imported symbol.  Several imports are separated
-      by commas: «\verb|%import common.A -> B, common.C|».
-\item «\verb|%ignore NAME|» makes the scanner skip the terminal \texttt{NAME}.  Several terminals are
-      separated by commas: «\verb|%ignore A, B|».
+      by commas: «\verb|%import common.A -> B, common.C;|».
+\item «\verb|%ignore NAME;|» makes the scanner skip the terminal \texttt{NAME}.  Several terminals are
+      separated by commas: «\verb|%ignore A, B;|».
 \item «\verb|%ignore "a", "b"|» at the end of an alternative removes these literals from its head, while
-      «\verb|%ignore: "a", "b"|» removes them from all heads.
-\item «\verb|%left "+" "-"|», «\verb|%right|», «\verb|%nonassoc|», and «\verb|%precedence|» declare the
+      «\verb|%ignore: "a", "b";|» removes them from all heads.
+\item «\verb|%left "+" "-";|», «\verb|%right|», «\verb|%nonassoc|», and «\verb|%precedence|» declare the
       precedence and the associativity of literals and terminals.  Every declaration has a higher precedence
       than the declarations above it (see Section \ref{sec:precedence}).
 \item «\verb|%prec NAME|» at the end of an alternative, but in front of an alias or «\verb|%ignore|», gives
       the alternative the precedence of \texttt{NAME}.
-\item «\verb|%declare NAME|» declares a terminal that is not defined in the grammar.
+\item «\verb|%declare NAME;|» declares a terminal that is not defined in the grammar.
 \item «\verb|%override|» and «\verb|%extend|» replace or extend a rule or a terminal that has been imported.
 \end{itemize}
 
@@ -859,6 +867,9 @@ from the module \texttt{IPython.display}.  The grammars in this tutorial are hig
 \subsection{Differences from \Lark}
 Readers who know \Lark\ should note the following differences:
 \begin{itemize}
+\item Every rule, every definition of a terminal, and every command ends with a semicolon, and line breaks
+      are white space.  In \Lark, a statement ends at the end of its line, unless the next line starts with
+      «\verb+|+».  Therefore, a grammar for \Lark\ needs a semicolon at the end of every statement.
 \item \Larkita\ always builds the canonical LR(1) automaton; an LALR(1) parser is obtained by merging states
       (see below).  The Earley and CYK parsers of \Lark\ are not available.
 \item The parser returns nested tuples.  There are no trees, transformers, or visitors.  Therefore, the rule

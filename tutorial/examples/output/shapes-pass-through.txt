@@ -1,7 +1,9 @@
 sum: sum "+" atom
    | atom
+   ;
 atom: NUM
     | NAME
+    ;
 
 '42'
     ⇒ ('NUM', '42')

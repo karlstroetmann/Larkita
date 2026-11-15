@@ -3,5 +3,5 @@
 //
 // Whitespace
 //
-WS_INLINE: /[ \t\xa0]/+
-WS: /[ \t\xa0\f\r\n]/+
+WS_INLINE: /[ \t\xa0]/+;
+WS: /[ \t\xa0\f\r\n]/+;
