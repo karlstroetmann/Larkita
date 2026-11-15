@@ -334,8 +334,9 @@ alternatives like «\verb|sum: atom|» leave no trace in the abstract syntax tre
 The string «\texttt{42}» is parsed with the alternatives «\verb|sum: atom|» and «\verb|atom: NUM|», but the result is
 just the pair «\verb|('NUM', '42')|».
 
-\subsection{The rule name as head}
-If an alternative has no head and is not a pass-through, the name of the rule is used as head:
+\subsection{The name of the variable as head}
+If an alternative has no head and is not a pass-through, the name of the variable that is defined by the rule is
+used as head:
 \resultfile{shapes-rule-name}
 Pass-through is decided by the grammar, not by the input:  The alternative «\verb|program: stmnt*|»
 always builds a tuple, even if the input contains only one statement.  For the empty string, it builds the
@@ -378,7 +379,7 @@ alternative «\verb|atom: "(" sum ")"|» therefore has no head and is a pass-thr
 \resultfile{shapes-ignore}
 If some literals should be removed from all alternatives of the grammar, the command «\verb|%ignore:|» (with a
 colon) is used.  In the following example, the alternative has no head left.  As it is not a pass-through, the
-name of the rule becomes the head:
+name of the variable \texttt{list} becomes the head:
 \resultfile{shapes-ignore-global}
 The following table summarizes the different forms of «\verb|%ignore|»:
 \begin{center}
@@ -451,7 +452,7 @@ tree, and executes it.
       abstract syntax trees of the operands.  The alias \texttt{neg} distinguishes the unary minus from the
       binary minus.
 \item The function \texttt{execute} executes a program.  As the head of the abstract syntax tree of a program
-      is the rule name \texttt{program}, the statements are the components «\verb|program[1:]|».  As the
+      is the name of the variable \texttt{program}, the statements are the components «\verb|program[1:]|».  As the
       semicolons are ignored, the head of an assignment is «\verb|':='|» and the head of a «\verb|print|»
       statement is «\verb|'print'|».
 \end{itemize}
@@ -475,7 +476,7 @@ semicolons from all heads.  Hence:
 \item The head of an «\verb|if|» statement would be «\verb|('if', 'else')|».  The alias in line 7 replaces it with
       «\verb|'if'|», so an «\verb|if|» statement is represented as «\verb|('if', ast(c), ast(s1), ast(s2))|».
 \item A loop «\verb|while (c) s|» is represented as «\verb|('while', ast(c), ast(s))|».
-\item A block has no head left.  Without the alias in line 9, the rule name \texttt{stmnt} would be used as
+\item A block has no head left.  Without the alias in line 9, the name of the variable \texttt{stmnt} would be used as
       head.  With the alias, a block is represented as «\verb|('block', ast(s1), ..., ast(sn))|».
 \item The alternative «\verb|factor: "(" expr ")"|» in line 29 has no head and is therefore a pass-through.
 \end{itemize}

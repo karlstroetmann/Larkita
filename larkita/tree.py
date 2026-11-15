@@ -6,7 +6,7 @@ from typing import List, Callable, Iterator, Any
 
 
 class Tree:
-    """Stores "data" (the name of a rule) and "children" (the matched sub-rules and terminals)."""
+    """Stores "data" (the name of a variable) and "children" (the subtrees of the variables and the terminals)."""
 
     data: str
     children: List[Any]

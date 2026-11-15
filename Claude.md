@@ -128,8 +128,8 @@ The following points make the rules above precise.
     that are expanded according to 5 do not count as `|` operators, so
     `a: (b | "-" b)` passes the abstract syntax tree of `b` through.
 
-3.  **Rule name as head.**  If an alternative has no head and is not a pass-through,
-    the name of the rule is used as head.  For example, `program: statement*`
+3.  **The name of the variable as head.**  If an alternative has no head and is not a
+    pass-through, the name of the variable that is defined by the rule is used as head.  For example, `program: statement*`
     yields `("program", ast(s_1), ..., ast(s_n))`, and `set_expr: "{" "}"` with
     the braces ignored yields `("set_expr",)`.
 
@@ -346,7 +346,7 @@ Last updated on 2026-11-15.  The memory of earlier Claude Code sessions is only 
     the grammar (`Python/Chapter-13/Grammar/bool-expr.lark` and `expr.lark`; the trees and the generated
     code are the same as before).  The dangling `else` of the compiler is still resolved as shift with a
     warning.
-14. Version 0.7.0 ends every statement of a grammar with a semicolon (clarification 15).  Not released yet.
+14. Version 0.7.0 ends every statement of a grammar with a semicolon (clarification 15).  Released on 2026-11-15.
     All grammars were converted by a script that finds the ends of the statements with the terminals of the
     old meta-grammar; for every converted grammar, the parse tree of the meta-grammar was compared with the
     one of the original (identical for all files and test strings).  The tutorial's outputs, the automata
@@ -355,6 +355,10 @@ Last updated on 2026-11-15.  The memory of earlier Claude Code sessions is only 
     files, the grammars in the notebooks, and the listings in the lecture notes were converted in the same way;
     the grammars for grammars of chapters 9 and 10 no longer need the token `RULE_NAME` (item 10), since the
     `;` tells the parser where a rule ends.  The line numbers cited in the lecture notes were adapted.
+15. Version 0.7.1 changes only the wording, at the author's request:  Lowercase names are syntactical
+    variables, not rules, and the head of an alternative without literals is the name of the variable that is
+    defined by the rule (clarification 3; README, tutorial, the error message for `%declare`).  The course was
+    changed in the same way.  Released on 2026-11-15.
 
 ### Constraints
 

@@ -138,9 +138,9 @@ In detail:
   symbol (with no `*`, `+`, `?`, `[...]` or `|`), it returns the abstract syntax
   tree of that symbol unchanged.  Inner alternatives are expanded first, so
   `a: (b | "-" b);` passes the abstract syntax tree of `b` through.
-* **Rule name as head.**  If an alternative has no head and is not a pass-through,
-  the name of the rule is used as head, e.g. `("program", ...)`.  An empty
-  alternative yields `("rule_name",)`.
+* **The name of the variable as head.**  If an alternative has no head and is not a
+  pass-through, the name of the variable that is defined by the rule is used as head,
+  e.g. `("program", ...)`.  An empty alternative of the rule for `a` yields `("a",)`.
 * **Repetitions and groups are flattened** into the tuple of the alternative.
 * **Missing optional parts are left out**; there is no `None` placeholder.
 * **Aliases** replace the whole head: `-> "call"` and `-> call` are equivalent.
@@ -178,7 +178,7 @@ Larkita reads Lark grammars, except that every statement ends with a semicolon:
       ;
   ```
 
-* Rules have lowercase names, terminals have uppercase names.
+* Syntactical variables have lowercase names, terminals have uppercase names.
 * `|` separates alternatives, `( ... )` groups, `[ ... ]` and `?` mark optional
   parts, `*` and `+` repeat, and `~ n` or `~ n..m` repeat a fixed number of times.
 * String literals are written as `"..."` (append `i` for case-insensitive
