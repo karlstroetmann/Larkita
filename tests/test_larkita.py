@@ -652,8 +652,8 @@ class TestOutputFile(LarkitaTestCase):
         with open(out_file, encoding='utf8') as f:
             report = f.read()
         # Canonical LR(1) keeps the two occurrences of b apart
-        self.assertIn('b → NUMBER •  { "x" }', report)
-        self.assertIn('b → NUMBER •  { "z" }', report)
+        self.assertIn('b → NUMBER •:  "x"', report)
+        self.assertIn('b → NUMBER •:  "z"', report)
 
     def test_literals_that_are_children_are_shown(self):
         g = 'expr: NUMBER (("+" | "-") NUMBER)*;'

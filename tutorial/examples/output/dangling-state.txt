@@ -1,7 +1,7 @@
 State 17
 
-    (1)  stmnt → "if" "(" NAME ")" stmnt •               { "else", $END }
-    (2)  stmnt → "if" "(" NAME ")" stmnt • "else" stmnt  { "else", $END }
+    (1)  stmnt → "if" "(" NAME ")" stmnt •:               "else", $END
+    (2)  stmnt → "if" "(" NAME ")" stmnt • "else" stmnt:  "else", $END
 
     "else"  shift and go to state 18
     $END    reduce using rule (1) stmnt → "if" "(" NAME ")" stmnt

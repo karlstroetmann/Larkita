@@ -4,7 +4,7 @@ The file lists the rules (with the shape of the abstract syntax tree that every 
 the precedence declarations (if there are any), the conflicts, and all states.  Every state shows
 its kernel and closure items in the form
 
-    A → α • β    { lookahead tokens }
+    A → α • β:  lookahead tokens
 
 followed by its actions and gotos.  String literals are shown as they are written in the grammar.
 If the states have been merged, the file also explains which states could not be merged.
@@ -35,7 +35,7 @@ class _Formatter:
         names = sorted(self.symbol(t) for t in terminals if t != END)
         if END in terminals:
             names.append(END)
-        return '{ %s }' % ', '.join(names)
+        return ', '.join(names)
 
     def rule(self, rule: Rule) -> str:
         rhs = ' '.join(self.symbol(sym.name) for sym in rule.expansion)
@@ -215,7 +215,8 @@ def format_report(analyzer: LR1Analyzer, terminal_names: Dict[str, str], source:
         rows = []
         for (r, d), lookaheads in state.items.items():
             marker = '' if (r, d) in state.kernel else '+'
-            rows.append([marker, f.number(analyzer.rules[r]), f.item(analyzer.rules[r], d), f.lookaheads(lookaheads)])
+            rows.append([marker, f.number(analyzer.rules[r]), f.item(analyzer.rules[r], d) + ':',
+                         f.lookaheads(lookaheads)])
         out += _table(rows, '  ')
         out.append('')
 

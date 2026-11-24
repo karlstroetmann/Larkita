@@ -545,7 +545,7 @@ identifier at the beginning of a statement:
 \resultfile[\small]{expr-state}
 \begin{itemize}
 \item The first part of a state lists its \blue{items}.  An item is a rule with a dot «\verb|•|» marking how
-      much of the right hand side has already been read.  It is followed by the set of \blue{look-ahead
+      much of the right hand side has already been read.  It is followed by a colon and the \blue{look-ahead
       tokens}: These are the tokens that can follow the left hand side of the rule when the parser reduces
       with this rule.  Items that have been added by the closure operation are marked with a «\verb|+|» at the
       beginning of the line.  State 2 has no such items.

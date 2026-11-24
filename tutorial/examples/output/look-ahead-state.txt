@@ -1,7 +1,7 @@
 State 4
 
-    (3)  b → "X" •  { "U" }
-    (4)  c → "X" •  { "U" }
+    (3)  b → "X" •:  "U"
+    (4)  c → "X" •:  "U"
 
     "U"  reduce using rule (3) b → "X"
 

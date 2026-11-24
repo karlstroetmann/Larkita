@@ -359,6 +359,12 @@ Last updated on 2026-11-15.  The memory of earlier Claude Code sessions is only 
     variables, not rules, and the head of an alternative without literals is the name of the variable that is
     defined by the rule (clarification 3; README, tutorial, the error message for `%declare`).  The course was
     changed in the same way.  Released on 2026-11-15.
+16. Version 0.7.2 changes only the format of the states in the output file, at the author's request:  An item
+    is followed by a colon and its look-ahead tokens, without curly braces, e.g. `b → "X" •:  "U"`, like the
+    notation $A \rightarrow \alpha \mdot \beta: L$ of the lecture notes.  The colon directly follows the
+    item; the look-ahead tokens are aligned in a column.  The README, the tutorial (outputs and the
+    explanation of a state), and the listings of states in chapter 11 of the lecture notes were updated.
+    Released on 2026-11-24.
 
 ### Constraints
 
