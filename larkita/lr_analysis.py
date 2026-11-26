@@ -89,11 +89,14 @@ class Conflict:
     how, as bison does:  ``('<', a, b)`` means that ``a`` has a lower precedence than ``b``, and
     ``(assoc, terminal)`` means that the rule and the terminal have the same precedence, so that the
     associativity has decided.  Otherwise ``precedence`` is None.
+    ``terminal_repr`` is the terminal as it is written in the grammar, e.g. ``"+"`` for the terminal
+    ``PLUS``.  It is used by ``repr`` and set by the class ``Larkita``, which knows the terminals.
     """
     def __init__(self, state: int, terminal: str, rules: List[Rule], shift_state: Optional[int],
                  chosen: Tuple, resolved: bool, reason: str, precedence: Optional[Tuple[str, ...]] = None) -> None:
         self.state = state
         self.terminal = terminal
+        self.terminal_repr = terminal
         self.rules = rules
         self.shift_state = shift_state
         self.chosen = chosen
@@ -108,7 +111,7 @@ class Conflict:
         return 'shift/reduce'
 
     def __repr__(self):
-        return '<%s conflict in state %d on %s>' % (self.kind, self.state, self.terminal)
+        return '<%s conflict in state %d on %s>' % (self.kind, self.state, self.terminal_repr)
 
 
 def _first_sets(rules: List[Rule]) -> Tuple[Dict[str, Set[str]], Set[str]]:

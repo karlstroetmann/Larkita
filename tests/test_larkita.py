@@ -293,6 +293,8 @@ class TestLR1(LarkitaTestCase):
         with self.assertWarns(ConflictWarning):
             parser = self.make(g)
         self.assertEqual([c.kind for c in parser.conflicts], ['shift/reduce'])
+        # The terminal is shown as it is written in the grammar
+        self.assertRegex(repr(parser.conflicts), r'^\[<shift/reduce conflict in state \d+ on "else">\]$')
         # The "else" belongs to the inner "if"
         self.assertEqual(parser.parse('if 1 then if 2 then 3 else 4'),
                          (('if', 'then'), ('NUMBER', '1'),

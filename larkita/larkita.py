@@ -89,14 +89,15 @@ class Larkita:
         self.parse_table = analyzer.parse_table
         self.conflicts = analyzer.conflicts
         terminal_names = {t.name: t.user_repr() for t in self.terminals}
+        for conflict in self.conflicts:
+            conflict.terminal_repr = terminal_names.get(conflict.terminal, conflict.terminal)
         write_report(out_file, analyzer, terminal_names, source)
 
         unresolved = [c for c in self.conflicts if not c.resolved]
         if unresolved:
             raise GrammarError("The grammar has %d unresolved reduce/reduce conflict(s), see %s:\n%s"
                                % (len(unresolved), out_file,
-                                  '\n'.join('  * state %d on %s' % (c.state, terminal_names.get(c.terminal, c.terminal))
-                                            for c in unresolved)))
+                                  '\n'.join('  * state %d on %s' % (c.state, c.terminal_repr) for c in unresolved)))
         shift_reduce = [c for c in self.conflicts if c.shift_state is not None and c.precedence is None]
         if shift_reduce:
             # The warning refers to the first line outside of Larkita, also when Larkita.open is called.

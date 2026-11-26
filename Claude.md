@@ -253,7 +253,7 @@ The following points make the rules above precise.
 
 ## Handoff: state of the work and how to continue
 
-Last updated on 2026-11-15.  The memory of earlier Claude Code sessions is only stored on the home computer
+Last updated on 2026-11-26.  The memory of earlier Claude Code sessions is only stored on the home computer
 (under the old directory name `simple-lark`), so this section is the reference.
 
 ### Repositories
@@ -365,6 +365,12 @@ Last updated on 2026-11-15.  The memory of earlier Claude Code sessions is only 
     item; the look-ahead tokens are aligned in a column.  The README, the tutorial (outputs and the
     explanation of a state), and the listings of states in chapter 11 of the lecture notes were updated.
     Released on 2026-11-24.
+17. Version 0.7.3 changes only how a conflict is printed, at the author's request:  `repr` shows the terminal
+    as it is written in the grammar, e.g. `<shift/reduce conflict in state 5 on "+">` instead of `... on PLUS`.
+    `Conflict.terminal` keeps the name of the terminal; `Larkita` sets `Conflict.terminal_repr` from the
+    names that the output file uses.  In the course, the notebooks of chapter 11 no longer use the module
+    `warnings`; they print `len(parser.conflicts)` and rely on the `ConflictWarning` that Jupyter shows.
+    Released on 2026-11-26.
 
 ### Constraints
 
@@ -381,7 +387,7 @@ Last updated on 2026-11-15.  The memory of earlier Claude Code sessions is only 
 
 ### How to check the work
 
-* Larkita: `python3 -m tests` (85 tests; the 3 tests of the lexers are skipped without Pygments) and
+* Larkita: `python3 -m tests` (90 tests; the 3 tests of the lexers are skipped without Pygments) and
   `mypy larkita`, which needs the stubs `types-Pygments`.
 * Tutorial: `cd tutorial && make`.  The build must have no errors and no overfull boxes.  The only
   accepted warnings are the two hyperref warnings "Token not allowed in a PDF string", which come from
