@@ -137,6 +137,7 @@ and stores their outputs in the directory \texttt{examples/output}, from where t
 document.
 
 \section{A First Parser}
+\label{sec:first}
 The file \texttt{expr.g} shown in Figure \ref{fig:expr.g} contains a grammar for assignments and arithmetic
 expressions.
 \grammarfile{expr.g}{The grammar \texttt{expr.g} for assignments and arithmetic expressions.}
@@ -189,8 +190,8 @@ the construction of the abstract syntax tree in detail.
 When \Larkita\ generates a parser, it also writes an output file that describes the parser.  As the grammar
 has been read from the file \texttt{expr.g}, this file is called \texttt{expr.out} and is written next to the
 grammar.  If the grammar is given as a string, the output file is called \texttt{grammar.out} and is written
-into the current directory.  The parameter \texttt{out\_file} sets another path.  Section \ref{sec:output}
-explains the output file.
+into the current directory.  The parameter \texttt{out\_file} sets another path, and «\verb|out_file=False|»
+suppresses the output file.  Section \ref{sec:output} explains the output file.
 
 \section{Writing Grammars}
 \Larkita\ reads grammars in the EBNF notation of \Lark, except that every rule, every definition of a
@@ -299,6 +300,34 @@ the identifiers, the string «\texttt{while}» is recognized as the keyword, but
 By default, the scanner is \blue{contextual}:  In every state of the parser, it only tries to match those
 terminals that the parser can accept in this state.  This avoids many collisions between terminals.  With the
 option «\verb|lexer='basic'|», the scanner always tries all terminals.
+
+\subsection{Using another scanner}
+\label{sec:other-scanner}
+The tokens of some languages cannot be described by regular expressions, e.g.~if the indentation of a line
+matters.  Then the tokens can be produced by a scanner of our own, and the method «\verb|parse_tokens|» parses
+them.  The program \texttt{scanner.py} in Figure \ref{fig:scanner.py} contains a scanner for the grammar
+\texttt{expr.g}.
+\pythonfile{scanner.py}{The program \texttt{scanner.py} parses the tokens of its own scanner.}
+\begin{itemize}
+\item The option «\verb|out_file=False|» tells \Larkita\ not to write an output file.
+\item The function \texttt{scan} returns the tokens of a line.  It creates every token with the call
+      \\[0.2cm]
+      \hspace*{1.3cm}
+      \verb|Token(type, value, line=..., column=...)|
+      \\[0.2cm]
+      where \texttt{type} is the name of a terminal.  The attribute \texttt{literals} of the parser maps every literal of the grammar to the name of its terminal,
+      e.g.~\verb|":="| to «\verb|__ANON_0|» and \verb|"*"| to \texttt{STAR}.  A character that is not a
+      literal keeps itself as its type, so the parser reports it as an unexpected token.
+\item The value of a token can be any object, and the abstract syntax tree contains it unchanged.  This
+      scanner converts numbers into integers.
+\end{itemize}
+The program prints the following tree.  In contrast to the tree of Section \ref{sec:first}, the number is the
+integer \texttt{3}, not the string \texttt{'3'}:
+\resultfile{scanner}
+A scanner does not have to start from scratch:  It can also change the tokens that the method \texttt{lex}
+returns, e.g.~insert tokens that mark where the indentation increases or decreases.  If the parser cannot
+accept a token, «\verb|parse_tokens|» raises the exception \texttt{UnexpectedToken}, as described in Section
+\ref{sec:errors}.
 
 \section{How the Abstract Syntax Tree is Built}
 \label{sec:ast}
@@ -505,6 +534,7 @@ Figure \ref{fig:while-collatz.txt}.
 \outputfigure{while-collatz}{The abstract syntax tree and the output of the Collatz program.}
 
 \section{Syntax Errors}
+\label{sec:errors}
 If the input contains a syntax error, the method \texttt{parse} raises an exception.  All exceptions of
 \Larkita\ are subclasses of \texttt{LarkitaError}.  There are two kinds of syntax errors:
 \begin{itemize}
@@ -560,7 +590,8 @@ and the parser reduces with rule (11).
 
 The parser itself also provides some information about the grammar:  The attributes \texttt{rules},
 \texttt{terminals}, \texttt{conflicts}, and \texttt{parse\_table} contain the rules, the terminals, the
-conflicts, and the parse table, while \texttt{out\_file} is the path of the output file.
+conflicts, and the parse table, while \texttt{out\_file} is the path of the output file (\texttt{None} if
+no output file has been written).
 
 \section{Conflicts}
 If the grammar is not LR(1), there are states in which the parser cannot decide which action to take:
@@ -792,7 +823,8 @@ Larkita(grammar, *, start=None, lexer='contextual', import_paths=(),
 \item \texttt{import\_paths}: additional directories that are searched for imported grammars.
 \item \texttt{source\_path}: the file name of the grammar.  It is used for relative imports and to name the
       output file.
-\item \texttt{out\_file}: the path of the output file.
+\item \texttt{out\_file}: the path of the output file, or \texttt{False} if no output file is to be
+      written.
 \item \texttt{regex}: if \texttt{True}, the module \texttt{regex} is used instead of the module \texttt{re}.
 \item «\verb|g_regex_flags|»: flags that are applied to all regular expressions, e.g.~«\verb|re.IGNORECASE|».
 \item «\verb|merge_states|»: if \texttt{True}, states with the same core are merged, as long as this is safe
@@ -807,6 +839,9 @@ A parser provides the following methods and attributes:
 \begin{itemize}
 \item «\verb|parse(text)|» returns the abstract syntax tree of \texttt{text}.
 \item «\verb|lex(text)|» returns an iterator over the tokens of \texttt{text}.
+\item «\verb|parse_tokens(tokens)|» returns the abstract syntax tree of tokens that come from another
+      scanner (see Section \ref{sec:other-scanner}).
+\item \texttt{literals} maps the literals of the grammar to the names of their terminals.
 \item \texttt{rules}, \texttt{terminals}, \texttt{conflicts}, \texttt{parse\_table}, and
       «\verb|out_file|» describe the generated parser.
 \end{itemize}
@@ -878,7 +913,8 @@ Readers who know \Lark\ should note the following differences:
       with an underscore are neither inlined nor filtered.
 \item Aliases and «\verb|%ignore|» after an alternative and «\verb|%ignore:|» control the heads of the tuples.
 \item Grammar templates, post-lexers like the \texttt{Indenter}, lexer callbacks, the interactive parser,
-      and caching are not supported.
+      and caching are not supported.  Instead of a post-lexer, a scanner of our own can be used (see
+      Section \ref{sec:other-scanner}).
 \item Shift/reduce conflicts are resolved by precedence declarations as in \textsl{Bison}, or else as shift
       with a warning.  Every parser comes with an output file that describes the LR(1) automaton.
 \item By default, the states of the canonical LR(1) automaton are not merged.  If the option

@@ -198,13 +198,15 @@ Larkita reads Lark grammars, except that every statement ends with a semicolon:
 Not supported (compared with Lark): statements that end at a line break, the
 rule modifiers `?rule` and `!rule`, templates, post-lexers (such as Lark's
 `Indenter`), lexer callbacks, and transformers.  Rules and terminals whose names start with `_` are not inlined
-or filtered.
+or filtered.  Instead of a post-lexer, a scanner of your own can be used (see
+[Using another scanner](#using-another-scanner)).
 
 ## The output file
 
 If the grammar is read from a file, the output file has the same name with the
 extension `.out` (`expr.g` produces `expr.out`).  Otherwise it is `grammar.out` in
-the current directory.  The parameter `out_file` sets another path.
+the current directory.  The parameter `out_file` sets another path, and
+`out_file=False` writes no output file.
 
 The file contains
 
@@ -312,7 +314,8 @@ Larkita(grammar, *, start=None, lexer='contextual', import_paths=(),
 * `import_paths`: additional directories to search for imported grammars.
 * `source_path`: the file name of the grammar, used for relative imports and to
   name the output file.
-* `out_file`: the path of the output file.
+* `out_file`: the path of the output file, or `False` if no output file is to be
+  written.
 * `regex`: use the `regex` module instead of `re`.
 * `g_regex_flags`: flags applied to all terminals.
 * `merge_states`: merge states with the same core, as long as this is safe
@@ -329,8 +332,55 @@ token has the type `$END`).  All exceptions derive from `LarkitaError`.
 Every token `t` provides `t.type`, `t.value`, `t.line`, and `t.column`; ignored
 tokens are skipped.
 
+`parser.parse_tokens(tokens)` parses tokens that come from another scanner and
+returns the abstract syntax tree (see below).  It raises `UnexpectedToken` like
+`parse`.
+
+`parser.literals` maps every string literal of the grammar to the name of its
+terminal, e.g. `{"while": "WHILE", ":=": "__ANON_0"}`.
+
 After construction, `parser.conflicts`, `parser.rules`, `parser.terminals`,
-`parser.parse_table` and `parser.out_file` describe the generated parser.
+`parser.parse_table` and `parser.out_file` describe the generated parser
+(`parser.out_file` is `None` if no output file has been written).
+
+### Using another scanner
+
+If the tokens of a language cannot be described by regular expressions (e.g. if
+the indentation of a line matters), they can be produced by a scanner of your own
+and parsed with `parse_tokens`.  The scanner creates every token as
+`Token(type, value, line=..., column=...)`, where `type` is the name of a terminal;
+for the string literals of the grammar, `parser.literals` gives these names.
+Terminals that the grammar does not define are declared with `%declare`.  The value
+of a token can be any object, and the abstract syntax tree contains it unchanged:
+
+```python
+import re
+from larkita import Larkita, Token
+
+parser = Larkita('''
+expr: expr "+" product | product;
+product: product "*" factor | factor;
+factor: "(" expr ")"    %ignore "(", ")"
+      | NUMBER
+      ;
+%declare NUMBER;
+''', out_file=False)
+
+def scan(text):
+    for m in re.finditer(r'(\d+)|\S', text):
+        if m.group(1):
+            kind, value = 'NUMBER', int(m.group(1))     # numbers become integers
+        else:
+            value = m.group()
+            kind = parser.literals.get(value, value)
+        yield Token(kind, value, line=1, column=m.start() + 1)
+
+print(parser.parse_tokens(scan('2 * (3 + 4)')))
+```
+
+prints `('*', ('NUMBER', 2), ('+', ('NUMBER', 3), ('NUMBER', 4)))`.  A scanner can
+also change the tokens that `parser.lex(text)` returns, e.g. insert tokens that mark
+where the indentation of a line increases or decreases.
 
 ### Highlighting grammars
 

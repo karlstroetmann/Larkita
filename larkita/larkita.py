@@ -1,13 +1,13 @@
 import os
 import re
 import warnings
-from typing import Any, Callable, IO, Iterator, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, IO, Iterable, Iterator, List, Optional, Sequence, Union
 
 from .ast_builder import create_callbacks
 from .common import LexerConf
 from .exceptions import ConflictWarning, GrammarError, assert_config
-from .grammar import Rule
-from .lexer import BasicLexer, LexerThread, TerminalDef, Token, token_collisions
+from .grammar import Rule, Terminal
+from .lexer import BasicLexer, LexerThread, PatternStr, TerminalDef, Token, token_collisions
 from .load_grammar import load_grammar
 from .lr_analysis import LR1Analyzer, Conflict, ParseTable
 from .parser_frontends import ParsingFrontend
@@ -28,6 +28,7 @@ class Larkita:
         out_file: the file that receives the description of the LR(1) automaton.  It defaults
             to ``source_path`` with the extension ``.out``, or to ``grammar.out`` in the current
             directory if the grammar is neither read from a file nor given a ``source_path``.
+            If it is False, no output file is written.
         regex: use the ``regex`` module instead of ``re``.
         g_regex_flags: flags that are applied to all terminals.
         merge_states: if true, states with the same core are merged, as long as this does not
@@ -35,16 +36,17 @@ class Larkita:
             the result is the LALR(1) automaton.  The parser accepts the same strings and returns
             the same abstract syntax trees, but it may detect syntax errors a few reductions later.
 
-    The output file is always written, even if the grammar has unresolved conflicts.  In that case
+    The output file is written even if the grammar has unresolved conflicts.  In that case
     a GrammarError is raised afterwards.  Shift/reduce conflicts are resolved by the precedence
     declarations (%left, %right, %nonassoc, %precedence, and %prec) as in bison.  The remaining
     shift/reduce conflicts are resolved in favour of shift and reported with a ConflictWarning.
     """
 
     source_path: Optional[str]
-    out_file: str
+    out_file: Optional[str]
     start: str
     terminals: List[TerminalDef]
+    literals: Dict[str, str]
     rules: List[Rule]
     ignore_tokens: List[str]
     parse_table: ParseTable
@@ -52,7 +54,7 @@ class Larkita:
 
     def __init__(self, grammar: Union[str, IO[str]], *, start: Optional[str] = None, lexer: str = 'contextual',
                  import_paths: Sequence[Union[str, Callable]] = (), source_path: Optional[str] = None,
-                 out_file: Optional[str] = None, regex: bool = False, g_regex_flags: int = 0,
+                 out_file: Union[str, bool, None] = None, regex: bool = False, g_regex_flags: int = 0,
                  merge_states: bool = False) -> None:
         if not isinstance(grammar, str):
             if source_path is None:
@@ -78,10 +80,11 @@ class Larkita:
         self.start = start
 
         self.terminals, self.rules, self.ignore_tokens, precedence = self.grammar.compile([start], ())
+        self.literals = _literals(self.rules, self.terminals)
 
-        if out_file is None:
+        if out_file is None or out_file is True:
             out_file = os.path.splitext(source_path)[0] + '.out' if source_path else 'grammar.out'
-        self.out_file = out_file
+        self.out_file = out_file or None
 
         self.lexer_conf = LexerConf(self.terminals, re_module, self.ignore_tokens, g_regex_flags)
         collision = token_collisions(self.lexer_conf) if lexer == 'contextual' else None
@@ -91,17 +94,20 @@ class Larkita:
         terminal_names = {t.name: t.user_repr() for t in self.terminals}
         for conflict in self.conflicts:
             conflict.terminal_repr = terminal_names.get(conflict.terminal, conflict.terminal)
-        write_report(out_file, analyzer, terminal_names, source)
+        see = ''
+        if self.out_file:
+            write_report(self.out_file, analyzer, terminal_names, source)
+            see = ', see %s' % self.out_file
 
         unresolved = [c for c in self.conflicts if not c.resolved]
         if unresolved:
-            raise GrammarError("The grammar has %d unresolved reduce/reduce conflict(s), see %s:\n%s"
-                               % (len(unresolved), out_file,
+            raise GrammarError("The grammar has %d unresolved reduce/reduce conflict(s)%s:\n%s"
+                               % (len(unresolved), see,
                                   '\n'.join('  * state %d on %s' % (c.state, c.terminal_repr) for c in unresolved)))
         shift_reduce = [c for c in self.conflicts if c.shift_state is not None and c.precedence is None]
         if shift_reduce:
             # The warning refers to the first line outside of Larkita, also when Larkita.open is called.
-            warnings.warn("%d shift/reduce conflict(s) were resolved as shift, see %s" % (len(shift_reduce), out_file),
+            warnings.warn("%d shift/reduce conflict(s) were resolved as shift%s" % (len(shift_reduce), see),
                           ConflictWarning, skip_file_prefixes=(os.path.dirname(__file__),))
 
         self.parser = ParsingFrontend(self.lexer_conf, self.parse_table, create_callbacks(self.rules), lexer)
@@ -144,3 +150,27 @@ class Larkita:
         Raises UnexpectedCharacters or UnexpectedToken if the text does not match the grammar.
         """
         return self.parser.parse(text)
+
+    def parse_tokens(self, tokens: Iterable[Token]) -> Any:
+        """Parses tokens that come from another scanner and returns the abstract syntax tree.
+
+        ``tokens`` is an iterable of Token objects, e.g. ``Token('NUMBER', 42, line=1, column=5)``.
+        The type of a token is the name of a terminal; ``literals`` gives the names of the
+        terminals of the string literals.  The value of a token can be any object, and the abstract
+        syntax tree contains it unchanged.  Raises UnexpectedToken if the parser cannot accept a
+        token.
+        """
+        return self.parser.parse_tokens(tokens)
+
+
+def _literals(rules: List[Rule], terminals: List[TerminalDef]) -> Dict[str, str]:
+    "Maps the string literals that occur in the rules to the names of their terminals"
+    patterns = {t.name: t.pattern for t in terminals}
+    literals = {}
+    for rule in rules:
+        for sym in rule.expansion:
+            if isinstance(sym, Terminal) and (sym.filter_out or sym.text is not None):
+                pattern = patterns.get(sym.name)
+                if isinstance(pattern, PatternStr):
+                    literals[pattern.value] = sym.name
+    return dict(sorted(literals.items()))

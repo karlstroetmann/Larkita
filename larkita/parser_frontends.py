@@ -1,9 +1,9 @@
-from typing import Any, Callable, Collection, Dict
+from typing import Any, Callable, Collection, Dict, Iterable
 
 from .common import LexerConf
 from .exceptions import ConfigurationError, UnexpectedInput
 from .grammar import Rule
-from .lexer import BasicLexer, ContextualLexer, Lexer, LexerThread
+from .lexer import BasicLexer, ContextualLexer, Lexer, LexerThread, Token
 from .lr_analysis import ParseTable
 from .lr_parser import LRParser
 
@@ -33,6 +33,18 @@ class ParsingFrontend:
         try:
             return self.parser.parse(LexerThread.from_text(self.lexer, text))
         except UnexpectedInput as e:
-            if e._terminals_by_name is None:
-                e._terminals_by_name = self.lexer_conf.terminals_by_name
+            self._add_terminals(e)
             raise
+
+    def parse_tokens(self, tokens: Iterable[Token]) -> Any:
+        "Parses tokens that come from another scanner, bypassing the lexer"
+        try:
+            return self.parser.parse_tokens(tokens)
+        except UnexpectedInput as e:
+            self._add_terminals(e)
+            raise
+
+    def _add_terminals(self, e: UnexpectedInput) -> None:
+        "Lets the message of the exception show the terminals as they are written in the grammar"
+        if e._terminals_by_name is None:
+            e._terminals_by_name = self.lexer_conf.terminals_by_name

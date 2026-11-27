@@ -1,6 +1,6 @@
 """The table-driven LR parser."""
 
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, Iterable, List
 
 from .exceptions import UnexpectedToken
 from .lexer import Token, LexerThread
@@ -87,8 +87,15 @@ class LRParser:
 
     def parse(self, lexer: LexerThread) -> Any:
         state = ParserState(self.parse_table, self.callbacks)
+        return self._parse(state, lexer.lex(state))
+
+    def parse_tokens(self, tokens: Iterable[Token]) -> Any:
+        "Parses tokens that come from another scanner"
+        return self._parse(ParserState(self.parse_table, self.callbacks), tokens)
+
+    def _parse(self, state: ParserState, tokens: Iterable[Token]) -> Any:
         token = None
-        for token in lexer.lex(state):
+        for token in tokens:
             state.feed_token(token)
 
         # The end state is only reached by a goto, so after the last shift we always have to reduce

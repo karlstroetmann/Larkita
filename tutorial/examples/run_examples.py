@@ -13,7 +13,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 OUTPUT = os.path.join(HERE, 'output')
 
-SCRIPTS = ['first', 'lex', 'shapes', 'calc', 'while', 'errors', 'message',
+SCRIPTS = ['first', 'lex', 'scanner', 'shapes', 'calc', 'while', 'errors', 'message',
            'dangling', 'precedence', 'look-ahead', 'priority', 'merge', 'not-lalr']
 
 

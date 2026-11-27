@@ -155,7 +155,8 @@ The following points make the rules above precise.
 
 7.  **Named tokens.**  A named token always becomes `(NAME, text)`.  The text is
     never converted, so `NUMBER` yields `("NUMBER", "42")`.  Inline regular
-    expressions `/.../` in a rule are treated like named tokens.
+    expressions `/.../` in a rule are treated like named tokens.  (With
+    `parse_tokens`, the value of a token is whatever the other scanner put into it.)
 
 8.  **Aliases.**  An alias replaces the whole head.  `-> "call"` and `-> call`
     mean the same.
@@ -180,6 +181,7 @@ The following points make the rules above precise.
     file is `grammar.out` in the current directory.  For every state it lists
     all items (kernel and closure) in the form `A → α • β  { lookaheads }`,
     followed by the actions, the gotos and the conflicts of that state.
+    With `out_file=False`, no output file is written (since version 0.8.0).
 
 12. **Start symbol.**  The start symbol is the first rule of the grammar, unless
     another start symbol is given explicitly.
@@ -225,7 +227,8 @@ The following points make the rules above precise.
   and nearley tools, the interactive parser, the cache, and Lark's tree-shaping
   features (`?rule`, `!rule`, `_rule`, `_TERMINAL`, placeholders for missing optionals).
   Also removed: grammar templates (`rule{x}: ...`), post-lexers (and the `Indenter`),
-  lexer callbacks, `scan()`, and serialization.
+  lexer callbacks, `scan()`, and serialization.  Instead of a post-lexer, a scanner of one's own
+  can be used with `parse_tokens` (since version 0.8.0).
 * Lark's test suite is replaced by new tests (`python3 -m tests`).
 
 ## Code map
@@ -253,7 +256,7 @@ The following points make the rules above precise.
 
 ## Handoff: state of the work and how to continue
 
-Last updated on 2026-11-26.  The memory of earlier Claude Code sessions is only stored on the home computer
+Last updated on 2026-11-27.  The memory of earlier Claude Code sessions is only stored on the home computer
 (under the old directory name `simple-lark`), so this section is the reference.
 
 ### Repositories
@@ -371,6 +374,24 @@ Last updated on 2026-11-26.  The memory of earlier Claude Code sessions is only 
     names that the output file uses.  In the course, the notebooks of chapter 11 no longer use the module
     `warnings`; they print `len(parser.conflicts)` and rely on the `ConflictWarning` that Jupyter shows.
     Released on 2026-11-26.
+18. Version 0.8.0 lets other scanners use Larkita's parser.  It was written for pytunia
+    (<https://github.com/karlstroetmann/pytunia>, `Box/Pytunia`), whose parser for Jasmin is generated
+    by Larkita, while the tokens come from a hand-written scanner that follows Jasmin's rules.
+    * `Larkita.parse_tokens(tokens)` parses an iterable of `Token` objects, bypassing the lexer
+      (`LRParser.parse_tokens`, `ParsingFrontend.parse_tokens`).  The type of a token is the name of
+      a terminal.  The value can be any object; the tree contains it unchanged.  The end of the input
+      is reported at the position of the last token, and `UnexpectedToken.token` is the token of the
+      scanner.
+    * `Larkita.literals` maps the string literals that occur in the rules to the names of their
+      terminals (`_literals` in `larkita.py`), also when a literal is the pattern of a named terminal
+      (`PLUS: "+"`).
+    * `out_file=False` writes no output file (`parser.out_file` is then `None`); the messages about
+      conflicts then do not say "see ...".  `out_file=True` means the default path, so that
+      `open(True)` cannot write the report to the standard output.  Without the report, building
+      the parser is faster (pytunia: 0.04 s instead of 0.07 s).
+    * The tutorial has a new subsection 3.4 "Using another scanner" with `examples/scanner.py`.
+      The README has a subsection with the same name.
+    Released on 2026-11-27.
 
 ### Constraints
 
@@ -387,7 +408,7 @@ Last updated on 2026-11-26.  The memory of earlier Claude Code sessions is only 
 
 ### How to check the work
 
-* Larkita: `python3 -m tests` (90 tests; the 3 tests of the lexers are skipped without Pygments) and
+* Larkita: `python3 -m tests` (99 tests; the 3 tests of the lexers are skipped without Pygments) and
   `mypy larkita`, which needs the stubs `types-Pygments`.
 * Tutorial: `cd tutorial && make`.  The build must have no errors and no overfull boxes.  The only
   accepted warnings are the two hyperref warnings "Token not allowed in a PDF string", which come from

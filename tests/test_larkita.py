@@ -5,7 +5,7 @@ import tempfile
 import unittest
 import warnings
 
-from larkita import (Larkita, GrammarError, ConflictWarning, UnexpectedToken, UnexpectedCharacters)
+from larkita import (Larkita, GrammarError, ConflictWarning, Token, UnexpectedToken, UnexpectedCharacters)
 from larkita.load_grammar import GRAMMAR_ERRORS
 from larkita.lr_analysis import LR1Analyzer
 
@@ -665,6 +665,113 @@ class TestOutputFile(LarkitaTestCase):
             report = f.read()
         self.assertIn('__expr_star_0 → "-" NUMBER', report)
         self.assertIn('⇒ ["-", ("NUMBER", text)]', report)
+
+    def test_no_output_file(self):
+        cwd = os.getcwd()
+        os.chdir(self.tmpdir)
+        try:
+            parser = Larkita('a: "x";', out_file=False)
+            self.assertIsNone(parser.out_file)
+            self.assertEqual(parser.parse('x'), ('x',))
+            # The messages about conflicts do not refer to an output file
+            g = 'stmt: "if" NUMBER "then" stmt | "if" NUMBER "then" stmt "else" stmt | NUMBER;' + LEXICAL
+            with self.assertWarns(ConflictWarning) as cm:
+                Larkita(g, out_file=False)
+            self.assertNotIn('see', str(cm.warning))
+            with self.assertRaises(GrammarError) as cm2:
+                Larkita('a: b | c;\nb: NUMBER;\nc: NUMBER;' + LEXICAL, out_file=False)
+            self.assertNotIn('see', str(cm2.exception))
+            self.assertEqual(os.listdir(self.tmpdir), [])
+            # out_file=True means the default path
+            self.assertEqual(Larkita('a: "x";', out_file=True).out_file, 'grammar.out')
+            self.assertTrue(os.path.exists(os.path.join(self.tmpdir, 'grammar.out')))
+        finally:
+            os.chdir(cwd)
+
+
+class TestOtherScanners(LarkitaTestCase):
+    "parse_tokens parses the tokens of another scanner"
+
+    GRAMMAR = '''
+    stmt: IDENTIFIER ":=" expr ";";
+    expr: expr "+" NUMBER | NUMBER;
+    %declare IDENTIFIER NUMBER;
+    '''
+
+    def tokens(self, parser, *items):
+        "The tokens of the given (type or literal, value) pairs, all in line 1"
+        tokens = []
+        for column, (kind, value) in enumerate(items, 1):
+            tokens.append(Token(parser.literals.get(kind, kind), value, line=1, column=column))
+        return tokens
+
+    def test_values_are_kept(self):
+        parser = Larkita(self.GRAMMAR, out_file=False)
+        tokens = self.tokens(parser, ('IDENTIFIER', 'x'), (':=', ':='), ('NUMBER', 1), ('+', '+'),
+                             ('NUMBER', 2), (';', ';'))
+        self.assertEqual(parser.parse_tokens(tokens),
+                         ((':=', ';'), ('IDENTIFIER', 'x'), ('+', ('NUMBER', 1), ('NUMBER', 2))))
+        # Any iterable will do
+        self.assertEqual(parser.parse_tokens(iter(tokens)), parser.parse_tokens(tokens))
+
+    def test_tokens_of_lex(self):
+        g = 'stmt: "if" NUMBER "then" IDENTIFIER (";" IDENTIFIER)*;'
+        parser = self.make(g, lexer='basic')
+        text = 'if 1 then x; y'
+        self.assertEqual(parser.parse_tokens(parser.lex(text)), parser.parse(text))
+
+    def test_literals(self):
+        g = '''
+        stmt: IDENTIFIER ":=" expr ";"
+            | "while" expr "do" stmt
+            ;
+        expr: NUMBER (("+" | "-") NUMBER)* | expr PLUS NUMBER | /[a-z]+/;
+        PLUS: "++";
+        '''
+        parser = self.make(g)
+        self.assertEqual(parser.literals['while'], 'WHILE')
+        self.assertEqual(parser.literals[';'], 'SEMICOLON')
+        self.assertTrue(parser.literals[':='].startswith('__ANON_'))
+        # literals that become children are included, named terminals are not
+        self.assertEqual(sorted(parser.literals), ['+', '-', ':=', ';', 'do', 'while'])
+
+    def test_literal_of_a_named_terminal(self):
+        g = 'expr: expr "+" NUMBER | NUMBER;\nPLUS: "+";'
+        parser = self.make(g)
+        self.assertEqual(parser.literals, {'+': 'PLUS'})
+        self.assertEqual(parser.parse_tokens(parser.lex('1+2')), ('+', ('NUMBER', '1'), ('NUMBER', '2')))
+
+    def test_unexpected_token(self):
+        parser = Larkita(self.GRAMMAR, out_file=False)
+        tokens = self.tokens(parser, ('IDENTIFIER', 'x'), (':=', ':='), ('IDENTIFIER', 'y'))
+        with self.assertRaises(UnexpectedToken) as cm:
+            parser.parse_tokens(tokens)
+        self.assertIs(cm.exception.token, tokens[2])
+        self.assertEqual((cm.exception.line, cm.exception.column), (1, 3))
+        self.assertEqual(cm.exception.expected, {'NUMBER'})
+
+    def test_unknown_token_type(self):
+        parser = Larkita(self.GRAMMAR, out_file=False)
+        tokens = self.tokens(parser, ('IDENTIFIER', 'x'), ('=', '='))
+        with self.assertRaises(UnexpectedToken) as cm:
+            parser.parse_tokens(tokens)
+        self.assertIs(cm.exception.token, tokens[1])
+
+    def test_unexpected_end_of_input(self):
+        parser = Larkita(self.GRAMMAR, out_file=False)
+        tokens = self.tokens(parser, ('IDENTIFIER', 'x'), (':=', ':='), ('NUMBER', 1))
+        with self.assertRaises(UnexpectedToken) as cm:
+            parser.parse_tokens(tokens)
+        # The end of the input is reported at the last token
+        self.assertEqual(cm.exception.token.type, '$END')
+        self.assertEqual((cm.exception.line, cm.exception.column), (1, 3))
+        self.assertIn('";"', str(cm.exception))
+
+    def test_no_tokens(self):
+        parser = Larkita('program: NUMBER*;\n%declare NUMBER;', out_file=False)
+        self.assertEqual(parser.parse_tokens([]), ('program',))
+        with self.assertRaises(UnexpectedToken):
+            Larkita(self.GRAMMAR, out_file=False).parse_tokens([])
 
 
 class TestSemicolons(LarkitaTestCase):
